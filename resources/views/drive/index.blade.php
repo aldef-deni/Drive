@@ -4,25 +4,32 @@
 @section('page-title', 'My Drive')
 
 @section('header-actions')
-<!-- Search Bar -->
-<div class="flex-1 max-w-md mx-4">
+<!-- Search Bar - Desktop -->
+<div class="hidden md:block flex-1 max-w-md mx-4">
     <form action="{{ route('drive.index') }}" method="GET" class="relative">
         <input type="text" name="search" value="{{ $search ?? '' }}" placeholder='Pencarian File'
-            class="w-full pl-10 pr-4 py-2 rounded-xl border border-[#1d3566] focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm">
-        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            class="w-full pl-10 pr-4 py-2 rounded-xl border border-[#1d3566] focus:ring-2 focus:ring-[#d4a843] focus:border-transparent outline-none text-sm bg-[#162a52] text-white">
+        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-[#d4a843]"></i>
         @if($search)
-        <a href="{{ route('drive.index') }}" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300">
+        <a href="{{ route('drive.index') }}" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
             <i class="fas fa-times"></i>
         </a>
         @endif
     </form>
 </div>
-<button onclick="openUploadModal()" class="btn-primary px-4 py-2 rounded-xl text-white font-medium flex items-center gap-2">
-    <i class="fas fa-cloud-upload-alt"></i> Upload
+<!-- Mobile Upload Button -->
+<button onclick="openUploadModal()" class="md:hidden btn-primary w-10 h-10 rounded-xl flex items-center justify-center">
+    <i class="fas fa-cloud-upload-alt"></i>
 </button>
-<button onclick="openFolderModal()" class="bg-[#162a52] hover:bg-[#253f70] px-4 py-2 rounded-xl text-white font-medium flex items-center gap-2 transition">
-    <i class="fas fa-folder-plus"></i> New Folder
-</button>
+<!-- Desktop Buttons -->
+<div class="hidden md:flex items-center gap-2">
+    <button onclick="openUploadModal()" class="btn-primary px-4 py-2 rounded-xl font-medium flex items-center gap-2">
+        <i class="fas fa-cloud-upload-alt"></i> Upload
+    </button>
+    <button onclick="openFolderModal()" class="bg-[#162a52] hover:bg-[#253f70] px-4 py-2 rounded-xl text-white font-medium flex items-center gap-2 transition">
+        <i class="fas fa-folder-plus"></i> New Folder
+    </button>
+</div>
 @endsection
 
 @section('content')
@@ -65,7 +72,7 @@
 @if($folders->count() > 0)
 <div class="mb-8">
     <h3 class="text-sm font-semibold text-[#d4a843] uppercase tracking-wider mb-4"><i class="fas fa-folder mr-2"></i>Folders ({{ $folders->count() }})</h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
         @foreach($folders as $folder)
         <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-4 hover-lift cursor-pointer group relative drag-item"
              draggable="true"
@@ -73,12 +80,12 @@
              onclick="window.location='{{ route('drive.index', ['folder' => $folder->path]) }}'"
              oncontextmenu="showContextMenu(event, 'folder', {{ $folder->id }}, '{{ $folder->name }}', {{ $folder->is_hidden ? 'true' : 'false' }}, {{ ($folder->lock_password || $folder->hasLockedFiles()) ? 'true' : 'false' }})">
             <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                    <i class="fas fa-folder text-amber-500 text-xl"></i>
+                <div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                    <i class="fas fa-folder text-amber-400 text-lg md:text-xl"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <p class="font-medium text-white truncate">{{ $folder->name }}</p>
-                    <p class="text-xs text-slate-400">{{ $folder->created_at->format('d M Y') }}</p>
+                    <p class="font-medium text-white text-sm md:text-base truncate">{{ $folder->name }}</p>
+                    <p class="text-xs text-slate-400 hidden md:block">{{ $folder->created_at->format('d M Y') }}</p>
                 </div>
                 @if($folder->lock_password)
                 <i class="fas fa-lock text-red-400 text-sm"></i>
@@ -104,18 +111,18 @@
              data-type="file" data-id="{{ $file->id }}" data-name="{{ $file->original_name }}" data-folder="{{ $file->folder }}" data-hidden="{{ $file->is_hidden ? '1' : '0' }}" data-locked="{{ $file->lock_password ? '1' : '0' }}" data-encrypted="{{ $file->is_encrypted ? '1' : '0' }}" data-shared="{{ $file->isShared() ? '1' : '0' }}" data-mime="{{ $file->mime_type }}"
              ondblclick="openFilePreview({{ $file->id }}, '{{ $file->original_name }}', '{{ $file->mime_type }}', {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }})"
              oncontextmenu="showContextMenu(event, 'file', {{ $file->id }}, '{{ $file->original_name }}', {{ $file->is_hidden ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }}, {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->isShared() ? 'true' : 'false' }})">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-[#162a52] flex items-center justify-center flex-shrink-0">
-                    <i class="fas {{ $file->getIconClass() }} text-xl"></i>
+            <div class="flex items-center gap-3 md:gap-4">
+                <div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[#162a52] flex items-center justify-center flex-shrink-0">
+                    <i class="fas {{ $file->getIconClass() }} text-lg md:text-xl"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <p class="font-medium text-white">{{ $file->original_name }}</p>
-                        @if($file->isShared())<span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full"><i class="fas fa-share-alt mr-1"></i>Shared</span>@endif
-                        @if($file->lock_password)<span class="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full"><i class="fas fa-lock mr-1"></i>Locked</span>@endif
-                        @if($file->is_hidden)<span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full"><i class="fas fa-eye-slash mr-1"></i>Hidden</span>@endif
+                    <div class="flex items-center gap-1 md:gap-2 flex-wrap">
+                        <p class="font-medium text-white text-sm md:text-base truncate">{{ $file->original_name }}</p>
+                        @if($file->isShared())<span class="hidden md:inline-flex px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full"><i class="fas fa-share-alt mr-1"></i>Shared</span>@endif
+                        @if($file->lock_password)<span class="hidden md:inline-flex px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full"><i class="fas fa-lock mr-1"></i>Locked</span>@endif
+                        @if($file->is_hidden)<span class="hidden md:inline-flex px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded-full"><i class="fas fa-eye-slash mr-1"></i>Hidden</span>@endif
                     </div>
-                    <p class="text-xs text-slate-400 mt-1">{{ $file->formatSize() }} &middot; {{ $file->mime_type }} &middot; {{ $file->updated_at->format('d M Y') }}</p>
+                    <p class="text-xs text-slate-400 mt-1">{{ $file->formatSize() }} <span class="hidden md:inline">&middot; {{ $file->mime_type }} &middot; {{ $file->updated_at->format('d M Y') }}</span></p>
                 </div>
             </div>
         </div>
@@ -153,8 +160,8 @@
 </div>
 
 <!-- Upload Modal -->
-<div id="uploadModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
-    <div class="bg-[#0f1f3d] rounded-2xl shadow-2xl w-full max-w-lg mx-4 border border-[#1d3566]">
+<div id="uploadModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay">
+    <div class="bg-[#0f1f3d] rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-lg mx-0 md:mx-4 border border-[#1d3566] max-h-[90vh] overflow-y-auto">
         <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
             <h3 class="text-lg font-semibold text-white">Upload File</h3>
             <button onclick="closeUploadModal()" class="w-8 h-8 rounded-lg hover:bg-[#162a52] flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
@@ -193,8 +200,8 @@
 </div>
 
 <!-- Folder Modal -->
-<div id="folderModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
-    <div class="bg-[#0f1f3d] rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-[#1d3566]">
+<div id="folderModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay">
+    <div class="bg-[#0f1f3d] rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-md mx-0 md:mx-4 border border-[#1d3566]">
         <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
             <h3 class="text-lg font-semibold text-white">Create Folder</h3>
             <button onclick="closeFolderModal()" class="w-8 h-8 rounded-lg hover:bg-[#162a52] flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
@@ -212,8 +219,8 @@
 </div>
 
 <!-- Lock/Unlock Modal -->
-<div id="lockModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
-    <div class="bg-[#0f1f3d] rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-[#1d3566]">
+<div id="lockModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay">
+    <div class="bg-[#0f1f3d] rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-md mx-0 md:mx-4 border border-[#1d3566]">
         <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
             <h3 class="text-lg font-semibold text-white"><i class="fas fa-lock text-red-400 mr-2"></i><span id="lockModalTitle">Lock File</span></h3>
             <button onclick="closeLockModal()" class="w-8 h-8 rounded-lg hover:bg-[#162a52] flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
@@ -233,8 +240,8 @@
 </div>
 
 <!-- Decrypt Modal -->
-<div id="decryptModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
-    <div class="bg-[#0f1f3d] rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-[#1d3566]">
+<div id="decryptModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay">
+    <div class="bg-[#0f1f3d] rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-md mx-0 md:mx-4 border border-[#1d3566]">
         <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
             <h3 class="text-lg font-semibold text-white"><i class="fas fa-lock text-green-400 mr-2"></i>Download Encrypted File</h3>
             <button onclick="closeDecryptModal()" class="w-8 h-8 rounded-lg hover:bg-[#162a52] flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
@@ -252,8 +259,8 @@
 </div>
 
 <!-- Share Modal -->
-<div id="shareModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
-    <div class="bg-[#0f1f3d] rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-[#1d3566]">
+<div id="shareModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay">
+    <div class="bg-[#0f1f3d] rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-md mx-0 md:mx-4 border border-[#1d3566]">
         <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
             <h3 class="text-lg font-semibold text-white"><i class="fas fa-share-alt text-[#d4a843] mr-2"></i>Share File</h3>
             <button onclick="closeShareModal()" class="w-8 h-8 rounded-lg hover:bg-[#162a52] flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
