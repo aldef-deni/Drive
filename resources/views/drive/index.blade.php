@@ -41,18 +41,45 @@
 </div>
 @endif
 
-<!-- Breadcrumb -->
-<nav class="mb-6 flex items-center gap-2 text-sm">
-    @foreach($breadcrumbs as $index => $breadcrumb)
-        @if($index > 0)
-        <i class="fas fa-chevron-right text-slate-400"></i>
-        @endif
-        <a href="{{ route('drive.index', ['folder' => $breadcrumb['path']]) }}" class="text-slate-400 hover:text-[#d4a843] transition {{ $index === count($breadcrumbs) - 1 ? 'font-semibold text-white' : '' }}">
-            @if($index === 0)<i class="fas fa-hard-drive mr-1"></i>@endif
-            {{ $breadcrumb['name'] }}
-        </a>
-    @endforeach
-</nav>
+<!-- Breadcrumb + View Toggle -->
+<div class="flex items-center justify-between mb-6">
+    <nav class="flex items-center gap-2 text-sm flex-1 min-w-0">
+        @foreach($breadcrumbs as $index => $breadcrumb)
+            @if($index > 0)
+            <i class="fas fa-chevron-right text-slate-400"></i>
+            @endif
+            <a href="{{ route('drive.index', ['folder' => $breadcrumb['path']]) }}" class="text-slate-400 hover:text-[#d4a843] transition {{ $index === count($breadcrumbs) - 1 ? 'font-semibold text-white' : '' }}">
+                @if($index === 0)<i class="fas fa-hard-drive mr-1"></i>@endif
+                {{ $breadcrumb['name'] }}
+            </a>
+        @endforeach
+    </nav>
+    <!-- View Toggle Dropdown -->
+    <div class="relative flex-shrink-0 ml-4">
+        <button onclick="toggleViewDropdown()" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#162a52] border border-[#1d3566] hover:border-[#d4a843]/50 transition text-sm">
+            <i class="fas fa-eye text-[#d4a843]"></i>
+            <span class="text-slate-300 hidden sm:inline">Tampilkan</span>
+            <i class="fas fa-chevron-down text-slate-500 text-xs"></i>
+        </button>
+        <div id="viewDropdown" class="hidden absolute right-0 top-12 w-48 bg-[#0f1f3d] rounded-xl shadow-2xl border border-[#1d3566] z-50 overflow-hidden">
+            <button onclick="setView('list')" class="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:bg-[#162a52] transition" id="viewList">
+                <i class="fas fa-list text-[#d4a843] w-5"></i>
+                <span class="text-white">List</span>
+                <i class="fas fa-check text-[#d4a843] ml-auto text-xs hidden check-list"></i>
+            </button>
+            <button onclick="setView('small')" class="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:bg-[#162a52] transition" id="viewSmall">
+                <i class="fas fa-th-large text-[#d4a843] w-5"></i>
+                <span class="text-white">Folder Kecil</span>
+                <i class="fas fa-check text-[#d4a843] ml-auto text-xs hidden check-small"></i>
+            </button>
+            <button onclick="setView('large')" class="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:bg-[#162a52] transition" id="viewLarge">
+                <i class="fas fa-th text-[#d4a843] w-5"></i>
+                <span class="text-white">Folder Besar</span>
+                <i class="fas fa-check text-[#d4a843] ml-auto text-xs hidden check-large"></i>
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- Drop Zone (external file upload) -->
 <div id="dropZone" class="file-drop-zone rounded-2xl p-8 mb-6 text-center hidden">
@@ -72,59 +99,147 @@
 @if($folders->count() > 0)
 <div class="mb-8">
     <h3 class="text-sm font-semibold text-[#d4a843] uppercase tracking-wider mb-4"><i class="fas fa-folder mr-2"></i>Folders ({{ $folders->count() }})</h3>
-    <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
+    
+    <!-- Small Grid (default) -->
+    <div id="foldersSmall" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
         @foreach($folders as $folder)
-        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-4 hover-lift cursor-pointer group relative drag-item"
+        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-3 hover-lift cursor-pointer group relative drag-item"
              draggable="true"
              data-type="folder" data-id="{{ $folder->id }}" data-name="{{ $folder->name }}" data-path="{{ $folder->path }}" data-hidden="{{ $folder->is_hidden ? '1' : '0' }}" data-locked="{{ $folder->lock_password ? '1' : '0' }}"
              onclick="window.location='{{ route('drive.index', ['folder' => $folder->path]) }}'"
              oncontextmenu="showContextMenu(event, 'folder', {{ $folder->id }}, '{{ $folder->name }}', {{ $folder->is_hidden ? 'true' : 'false' }}, {{ ($folder->lock_password || $folder->hasLockedFiles()) ? 'true' : 'false' }})">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                    <i class="fas fa-folder text-amber-400 text-lg md:text-xl"></i>
+            <div class="flex flex-col items-center text-center">
+                <div class="w-11 h-11 rounded-xl bg-amber-500/20 flex items-center justify-center mb-2">
+                    <i class="fas fa-folder text-amber-400 text-xl"></i>
                 </div>
-                <div class="flex-1 min-w-0">
-                    <p class="font-medium text-white text-sm md:text-base truncate">{{ $folder->name }}</p>
-                    <p class="text-xs text-slate-400 hidden md:block">{{ $folder->created_at->format('d M Y') }}</p>
-                </div>
+                <p class="font-medium text-white text-xs truncate w-full">{{ $folder->name }}</p>
                 @if($folder->lock_password)
-                <i class="fas fa-lock text-red-400 text-sm"></i>
+                <i class="fas fa-lock text-red-400 text-[10px] mt-1"></i>
                 @endif
             </div>
             @if($folder->is_hidden)
-            <div class="absolute top-2 left-2"><span class="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full"><i class="fas fa-eye-slash mr-1"></i>Hidden</span></div>
+            <div class="absolute top-1.5 left-1.5"><span class="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] rounded-full"><i class="fas fa-eye-slash"></i></span></div>
+            @endif
+        </div>
+        @endforeach
+    </div>
+    
+    <!-- Large Grid -->
+    <div id="foldersLarge" class="hidden grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+        @foreach($folders as $folder)
+        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-5 hover-lift cursor-pointer group relative drag-item"
+             draggable="true"
+             data-type="folder" data-id="{{ $folder->id }}" data-name="{{ $folder->name }}" data-path="{{ $folder->path }}" data-hidden="{{ $folder->is_hidden ? '1' : '0' }}" data-locked="{{ $folder->lock_password ? '1' : '0' }}"
+             onclick="window.location='{{ route('drive.index', ['folder' => $folder->path]) }}'"
+             oncontextmenu="showContextMenu(event, 'folder', {{ $folder->id }}, '{{ $folder->name }}', {{ $folder->is_hidden ? 'true' : 'false' }}, {{ ($folder->lock_password || $folder->hasLockedFiles()) ? 'true' : 'false' }})">
+            <div class="flex flex-col items-center text-center">
+                <div class="w-20 h-20 rounded-2xl bg-amber-500/20 flex items-center justify-center mb-3">
+                    <i class="fas fa-folder text-amber-400 text-4xl"></i>
+                </div>
+                <p class="font-medium text-white text-sm truncate w-full">{{ $folder->name }}</p>
+                <p class="text-xs text-slate-400 mt-0.5">{{ $folder->created_at->format('d M Y') }}</p>
+                @if($folder->lock_password)
+                <i class="fas fa-lock text-red-400 text-xs mt-1"></i>
+                @endif
+            </div>
+            @if($folder->is_hidden)
+            <div class="absolute top-2 left-2"><span class="px-2 py-1 bg-amber-500/20 text-amber-400 text-xs rounded-full"><i class="fas fa-eye-slash mr-1"></i>Hidden</span></div>
+            @endif
+        </div>
+        @endforeach
+    </div>
+    
+    <!-- List View -->
+    <div id="foldersList" class="hidden space-y-2">
+        @foreach($folders as $folder)
+        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] px-4 py-3 hover-lift cursor-pointer group relative drag-item flex items-center gap-4"
+             draggable="true"
+             data-type="folder" data-id="{{ $folder->id }}" data-name="{{ $folder->name }}" data-path="{{ $folder->path }}" data-hidden="{{ $folder->is_hidden ? '1' : '0' }}" data-locked="{{ $folder->lock_password ? '1' : '0' }}"
+             onclick="window.location='{{ route('drive.index', ['folder' => $folder->path]) }}'"
+             oncontextmenu="showContextMenu(event, 'folder', {{ $folder->id }}, '{{ $folder->name }}', {{ $folder->is_hidden ? 'true' : 'false' }}, {{ ($folder->lock_password || $folder->hasLockedFiles()) ? 'true' : 'false' }})">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-folder text-amber-400 text-lg"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="font-medium text-white text-sm truncate">{{ $folder->name }}</p>
+            </div>
+            <span class="text-xs text-slate-400 hidden md:block">{{ $folder->created_at->format('d M Y') }}</span>
+            @if($folder->lock_password)
+            <i class="fas fa-lock text-red-400 text-sm"></i>
+            @endif
+            @if($folder->is_hidden)
+            <span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded-full"><i class="fas fa-eye-slash mr-1"></i>Hidden</span>
             @endif
         </div>
         @endforeach
     </div>
 </div>
-@endif
-
-<!-- Files -->
+@endif<!-- Files -->
 @if($files->count() > 0)
 <div>
     <h3 class="text-sm font-semibold text-[#d4a843] uppercase tracking-wider mb-4"><i class="fas fa-file mr-2"></i>Files ({{ $files->count() }})</h3>
-    <div class="space-y-3">
+    
+    <!-- Small Grid View -->
+    <div id="filesSmall" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
         @foreach($files as $file)
-        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-4 hover-lift cursor-pointer drag-item"
+        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-3 hover-lift cursor-pointer drag-item"
              draggable="true"
              data-type="file" data-id="{{ $file->id }}" data-name="{{ $file->original_name }}" data-folder="{{ $file->folder }}" data-hidden="{{ $file->is_hidden ? '1' : '0' }}" data-locked="{{ $file->lock_password ? '1' : '0' }}" data-encrypted="{{ $file->is_encrypted ? '1' : '0' }}" data-shared="{{ $file->isShared() ? '1' : '0' }}" data-mime="{{ $file->mime_type }}"
              ondblclick="openFilePreview({{ $file->id }}, '{{ $file->original_name }}', '{{ $file->mime_type }}', {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }})"
              oncontextmenu="showContextMenu(event, 'file', {{ $file->id }}, '{{ $file->original_name }}', {{ $file->is_hidden ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }}, {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->isShared() ? 'true' : 'false' }})">
-            <div class="flex items-center gap-3 md:gap-4">
-                <div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[#162a52] flex items-center justify-center flex-shrink-0">
-                    <i class="fas {{ $file->getIconClass() }} text-lg md:text-xl"></i>
+            <div class="flex flex-col items-center text-center">
+                <div class="w-11 h-11 rounded-xl bg-[#162a52] flex items-center justify-center mb-2">
+                    <i class="fas {{ $file->getIconClass() }} text-xl"></i>
                 </div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1 md:gap-2 flex-wrap">
-                        <p class="font-medium text-white text-sm md:text-base truncate">{{ $file->original_name }}</p>
-                        @if($file->isShared())<span class="hidden md:inline-flex px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full"><i class="fas fa-share-alt mr-1"></i>Shared</span>@endif
-                        @if($file->lock_password)<span class="hidden md:inline-flex px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full"><i class="fas fa-lock mr-1"></i>Locked</span>@endif
-                        @if($file->is_hidden)<span class="hidden md:inline-flex px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded-full"><i class="fas fa-eye-slash mr-1"></i>Hidden</span>@endif
-                    </div>
-                    <p class="text-xs text-slate-400 mt-1">{{ $file->formatSize() }} <span class="hidden md:inline">&middot; {{ $file->mime_type }} &middot; {{ $file->updated_at->format('d M Y') }}</span></p>
+                <p class="font-medium text-white text-xs truncate w-full">{{ $file->original_name }}</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">{{ $file->formatSize() }}</p>
+            </div>
+        </div>
+        @endforeach
+    </div>
+    
+    <!-- Large Grid View -->
+    <div id="filesLarge" class="hidden grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+        @foreach($files as $file)
+        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-5 hover-lift cursor-pointer drag-item"
+             draggable="true"
+             data-type="file" data-id="{{ $file->id }}" data-name="{{ $file->original_name }}" data-folder="{{ $file->folder }}" data-hidden="{{ $file->is_hidden ? '1' : '0' }}" data-locked="{{ $file->lock_password ? '1' : '0' }}" data-encrypted="{{ $file->is_encrypted ? '1' : '0' }}" data-shared="{{ $file->isShared() ? '1' : '0' }}" data-mime="{{ $file->mime_type }}"
+             ondblclick="openFilePreview({{ $file->id }}, '{{ $file->original_name }}', '{{ $file->mime_type }}', {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }})"
+             oncontextmenu="showContextMenu(event, 'file', {{ $file->id }}, '{{ $file->original_name }}', {{ $file->is_hidden ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }}, {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->isShared() ? 'true' : 'false' }})">
+            <div class="flex flex-col items-center text-center">
+                <div class="w-20 h-20 rounded-2xl bg-[#162a52] flex items-center justify-center mb-3">
+                    <i class="fas {{ $file->getIconClass() }} text-4xl"></i>
+                </div>
+                <p class="font-medium text-white text-sm truncate w-full">{{ $file->original_name }}</p>
+                <p class="text-xs text-slate-400 mt-0.5">{{ $file->formatSize() }}</p>
+                <div class="flex items-center gap-1 mt-1">
+                    @if($file->isShared())<span class="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] rounded-full"><i class="fas fa-share-alt"></i></span>@endif
+                    @if($file->lock_password)<span class="px-1.5 py-0.5 bg-red-500/20 text-red-400 text-[10px] rounded-full"><i class="fas fa-lock"></i></span>@endif
                 </div>
             </div>
+        </div>
+        @endforeach
+    </div>
+    
+    <!-- List View -->
+    <div id="filesList" class="hidden space-y-2">
+        @foreach($files as $file)
+        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] px-4 py-3 hover-lift cursor-pointer drag-item flex items-center gap-4"
+             draggable="true"
+             data-type="file" data-id="{{ $file->id }}" data-name="{{ $file->original_name }}" data-folder="{{ $file->folder }}" data-hidden="{{ $file->is_hidden ? '1' : '0' }}" data-locked="{{ $file->lock_password ? '1' : '0' }}" data-encrypted="{{ $file->is_encrypted ? '1' : '0' }}" data-shared="{{ $file->isShared() ? '1' : '0' }}" data-mime="{{ $file->mime_type }}"
+             ondblclick="openFilePreview({{ $file->id }}, '{{ $file->original_name }}', '{{ $file->mime_type }}', {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }})"
+             oncontextmenu="showContextMenu(event, 'file', {{ $file->id }}, '{{ $file->original_name }}', {{ $file->is_hidden ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }}, {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->isShared() ? 'true' : 'false' }})">
+            <div class="w-10 h-10 rounded-xl bg-[#162a52] flex items-center justify-center flex-shrink-0">
+                <i class="fas {{ $file->getIconClass() }} text-lg"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="font-medium text-white text-sm truncate">{{ $file->original_name }}</p>
+            </div>
+            <span class="text-xs text-slate-400 hidden md:block">{{ $file->formatSize() }}</span>
+            <span class="text-xs text-slate-400 hidden lg:block">{{ $file->mime_type }}</span>
+            <span class="text-xs text-slate-400 hidden md:block">{{ $file->updated_at->format('d M Y') }}</span>
+            @if($file->isShared())<span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full hidden md:inline-flex"><i class="fas fa-share-alt mr-1"></i>Shared</span>@endif
+            @if($file->lock_password)<span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full hidden md:inline-flex"><i class="fas fa-lock mr-1"></i>Locked</span>@endif
         </div>
         @endforeach
     </div>
@@ -297,6 +412,70 @@
 
 @push('scripts')
 <script>
+// ==========================================
+// View Toggle (List / Small Grid / Large Grid)
+// =========================================
+let currentView = localStorage.getItem('driveView') || 'small';
+
+document.addEventListener('DOMContentLoaded', function() {
+    applyView(currentView);
+});
+
+function toggleViewDropdown() {
+    document.getElementById('viewDropdown').classList.toggle('hidden');
+}
+
+function setView(view) {
+    currentView = view;
+    localStorage.setItem('driveView', view);
+    applyView(view);
+    document.getElementById('viewDropdown').classList.add('hidden');
+}
+
+function applyView(view) {
+    // Hide all
+    ['foldersSmall', 'foldersLarge', 'foldersList', 'filesSmall', 'filesLarge', 'filesList'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+    
+    // Uncheck all
+    document.querySelectorAll('.check-list, .check-small, .check-large').forEach(el => el.classList.add('hidden'));
+    
+    if (view === 'list') {
+        document.getElementById('foldersList')?.classList.remove('hidden');
+        document.getElementById('filesList')?.classList.remove('hidden');
+        document.querySelector('.check-list')?.classList.remove('hidden');
+    } else if (view === 'large') {
+        document.getElementById('foldersLarge')?.classList.remove('hidden');
+        document.getElementById('filesLarge')?.classList.remove('hidden');
+        document.querySelector('.check-large')?.classList.remove('hidden');
+    } else {
+        // small (default)
+        document.getElementById('foldersSmall')?.classList.remove('hidden');
+        document.getElementById('filesSmall')?.classList.remove('hidden');
+        document.querySelector('.check-small')?.classList.remove('hidden');
+    }
+    
+    // Re-init drag & drop for new elements
+    initDragDrop();
+}
+
+function initDragDrop() {
+    document.querySelectorAll('.drag-item').forEach(el => {
+        el.setAttribute('draggable', 'true');
+    });
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('viewDropdown');
+    const btn = dropdown?.previousElementSibling;
+    if (dropdown && !dropdown.contains(e.target) && !btn?.contains(e.target)) {
+        dropdown.classList.add('hidden');
+    }
+});
+
 let ctxType = null, ctxId = null, ctxName = '', ctxHidden = false, ctxLocked = false, ctxEncrypted = false;
 let currentDecryptFileId = null, currentShareFileId = null;
 
