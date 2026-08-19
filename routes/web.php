@@ -42,6 +42,7 @@ Route::prefix('drive')->middleware('auth')->group(function () {
     Route::post('/folder/create', [DriveController::class, 'createFolder'])->name('drive.folder.create');
     Route::post('/folder/{folder}/toggle-visibility', [DriveController::class, 'toggleFolderVisibility'])->name('drive.folder.toggle-visibility');
     Route::get('/hidden', [DriveController::class, 'showHidden'])->name('drive.hidden');
+    Route::post('/hidden/verify', [DriveController::class, 'verifyHiddenPassword'])->name('drive.hidden.verify');
     Route::post('/file/{file}/share', [DriveController::class, 'share'])->name('drive.share');
     Route::post('/file/{file}/unshare', [DriveController::class, 'unshare'])->name('drive.unshare');
     Route::get('/file/{file}/info', [DriveController::class, 'info'])->name('drive.info');
@@ -63,11 +64,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
     Route::delete('/users/{user}', [AdminController::class, 'deleteUser'])->name('admin.users.delete');
     Route::post('/users/{user}/toggle-status', [AdminController::class, 'toggleUserStatus'])->name('admin.users.toggle-status');
     Route::post('/users/{user}/reset-storage', [AdminController::class, 'resetStorage'])->name('admin.users.reset-storage');
-    Route::get('/lock-management', [AdminController::class, 'lockManagement'])->name('admin.lock-management');
-    Route::put('/file/{file}/change-lock-password', [AdminController::class, 'changeFileLockPassword'])->name('admin.file.change-lock-password');
-    Route::delete('/file/{file}/remove-lock', [AdminController::class, 'removeFileLock'])->name('admin.file.remove-lock');
-    Route::put('/folder/{folder}/change-lock-password', [AdminController::class, 'changeFolderLockPassword'])->name('admin.folder.change-lock-password');
-    Route::delete('/folder/{folder}/remove-lock', [AdminController::class, 'removeFolderLock'])->name('admin.folder.remove-lock');
 });
 
 // Public share routes

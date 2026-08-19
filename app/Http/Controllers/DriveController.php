@@ -651,12 +651,14 @@ class DriveController extends Controller
     }
 
     /**
-     * Show hidden files.
+     * Show hidden files page.
      */
-    public function showHidden()
+    public function showHidden(Request $request)
     {
         $user = Auth::user();
-        
+        $unhidePassword = $request->get('unhide_password', '');
+        $unhideSuccess = false;
+
         $files = File::where('user_id', $user->id)
             ->where('is_hidden', true)
             ->orderBy('created_at', 'desc')
@@ -670,7 +672,43 @@ class DriveController extends Controller
         return view('drive.hidden', [
             'files' => $files,
             'folders' => $folders,
+            'unhidePassword' => $unhidePassword,
+            'unhideSuccess' => $unhideSuccess,
         ]);
+    }
+
+    /**
+     * Verify hidden system password.
+     */
+    public function verifyHiddenPassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        $user = Auth::user();
+
+        // Check against user's lock passwords on any file/folder
+        $hasLock = \App\Models\File::where('user_id', $user->id)
+            ->whereNotNull('lock_password')
+            ->where('lock_password', '!=', '')
+            ->exists();
+
+        // Use the first lock password found as the hidden system password
+        $lockedFile = \App\Models\File::where('user_id', $user->id)
+            ->whereNotNull('lock_password')
+            ->first();
+
+        if (!$lockedFile || !\Hash::check($request->password, $lockedFile->lock_password)) {
+            // Fallback: also accept user password
+            if (!\Hash::check($request->password, $user->password)) {
+                return back()->withErrors(['password' => 'Password salah. Gunakan password lock file atau password akun Anda.'])->withInput();
+            }
+        }
+
+        session(['hidden_verified' => true]);
+
+        return redirect()->route('drive.hidden');
     }
 
     /**

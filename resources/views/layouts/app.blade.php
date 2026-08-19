@@ -92,13 +92,6 @@
                     <span>My Drive</span>
                 </a>
                 @if(auth()->user()->isAdmin())
-                <a href="{{ route('drive.hidden') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('drive.hidden') ? 'active' : '' }}">
-                    <i class="fas fa-eye-slash w-5"></i>
-                    <span>Hidden Files</span>
-                </a>
-                @endif
-                
-                @if(auth()->user()->isAdmin())
                 <div class="pt-4 mt-4 border-t border-white/10">
                     <p class="px-4 text-xs text-white/50 uppercase tracking-wider mb-2">Admin</p>
                     <a href="{{ route('admin.index') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('admin.index') ? 'active' : '' }}">
@@ -109,9 +102,9 @@
                         <i class="fas fa-users w-5"></i>
                         <span>User Management</span>
                     </a>
-                    <a href="{{ route('admin.lock-management') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('admin.lock-management') ? 'active' : '' }}">
-                        <i class="fas fa-lock w-5"></i>
-                        <span>Lock Management</span>
+                    <a href="{{ route('drive.hidden') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('drive.hidden') ? 'active' : '' }}">
+                        <i class="fas fa-user-secret w-5"></i>
+                        <span>Hidden System</span>
                     </a>
                 </div>
                 @endif

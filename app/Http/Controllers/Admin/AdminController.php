@@ -4,12 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\File;
-use App\Models\FileFolder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 
 class AdminController extends Controller
 {
@@ -137,91 +133,4 @@ class AdminController extends Controller
         return back()->with('success', 'Storage user berhasil direset');
     }
 
-    /**
-     * Show lock management page.
-     */
-    public function lockManagement(Request $request)
-    {
-        $search = $request->get('search', '');
-        $type = $request->get('type', 'all');
-
-        $lockedFiles = File::where('lock_password', '!=', null)
-            ->with('user');
-        $lockedFolders = FileFolder::where('lock_password', '!=', null)
-            ->with('user');
-
-        if ($search) {
-            $lockedFiles->where('original_name', 'like', "%{$search}%");
-            $lockedFolders->where('name', 'like', "%{$search}%");
-        }
-
-        if ($type === 'files') {
-            $lockedFolders = collect();
-        } elseif ($type === 'folders') {
-            $lockedFiles = collect();
-        } else {
-            $lockedFiles = $lockedFiles->get();
-            $lockedFolders = $lockedFolders->get();
-        }
-
-        return view('admin.lock-management', [
-            'lockedFiles' => $lockedFiles instanceof \Illuminate\Support\Collection ? $lockedFiles : $lockedFiles->get(),
-            'lockedFolders' => $lockedFolders instanceof \Illuminate\Support\Collection ? $lockedFolders : $lockedFolders->get(),
-            'search' => $search,
-            'type' => $type,
-            'totalLocked' => File::where('lock_password', '!=', null)->count() + FileFolder::where('lock_password', '!=', null)->count(),
-        ]);
-    }
-
-    /**
-     * Change file lock password (admin).
-     */
-    public function changeFileLockPassword(Request $request, File $file)
-    {
-        $request->validate([
-            'new_password' => 'required|string|min:4',
-        ]);
-
-        $file->lock_password = Hash::make($request->new_password);
-        $file->save();
-
-        return back()->with('success', 'Lock password file "' . $file->original_name . '" berhasil diubah');
-    }
-
-    /**
-     * Remove file lock (admin).
-     */
-    public function removeFileLock(File $file)
-    {
-        $file->lock_password = null;
-        $file->save();
-
-        return back()->with('success', 'Lock pada file "' . $file->original_name . '" berhasil dihapus');
-    }
-
-    /**
-     * Change folder lock password (admin).
-     */
-    public function changeFolderLockPassword(Request $request, FileFolder $folder)
-    {
-        $request->validate([
-            'new_password' => 'required|string|min:4',
-        ]);
-
-        $folder->lock_password = Hash::make($request->new_password);
-        $folder->save();
-
-        return back()->with('success', 'Lock password folder "' . $folder->name . '" berhasil diubah');
-    }
-
-    /**
-     * Remove folder lock (admin).
-     */
-    public function removeFolderLock(FileFolder $folder)
-    {
-        $folder->lock_password = null;
-        $folder->save();
-
-        return back()->with('success', 'Lock pada folder "' . $folder->name . '" berhasil dihapus');
-    }
 }
