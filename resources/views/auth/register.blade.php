@@ -12,31 +12,35 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .login-bg {
-            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%);
+            background: linear-gradient(135deg, #0a1628 0%, #0f1f3d 50%, #162a52 100%);
         }
         .glass-card {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(15, 31, 61, 0.8);
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(212, 168, 67, 0.2);
         }
         .input-field {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(10, 22, 40, 0.6);
+            border: 1px solid rgba(212, 168, 67, 0.3);
+            color: white;
             transition: all 0.3s ease;
         }
+        .input-field::placeholder { color: rgba(255,255,255,0.4); }
         .input-field:focus {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: #818cf8;
-            box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.3);
+            background: rgba(10, 22, 40, 0.8);
+            border-color: #d4a843;
+            box-shadow: 0 0 0 3px rgba(212, 168, 67, 0.2);
         }
         .btn-gradient {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            background: linear-gradient(135deg, #d4a843, #b8912e);
+            color: #0a1628;
+            font-weight: 600;
             transition: all 0.3s ease;
         }
         .btn-gradient:hover {
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            background: linear-gradient(135deg, #e4be5a, #d4a843);
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+            box-shadow: 0 10px 25px rgba(212, 168, 67, 0.35);
         }
     </style>
 </head>

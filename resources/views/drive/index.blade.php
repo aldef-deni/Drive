@@ -40,7 +40,7 @@
         @if($index > 0)
         <i class="fas fa-chevron-right text-gray-400"></i>
         @endif
-        <a href="{{ route('drive.index', ['folder' => $breadcrumb['path']]) }}" class="text-gray-600 hover:text-indigo-600 transition {{ $index === count($breadcrumbs) - 1 ? 'font-semibold text-gray-800' : '' }}">
+        <a href="{{ route('drive.index', ['folder' => $breadcrumb['path']]) }}" class="text-gray-400 hover:text-[#d4a843] transition {{ $index === count($breadcrumbs) - 1 ? 'font-semibold text-gray-800' : '' }}">
             @if($index === 0)<i class="fas fa-hard-drive mr-1"></i>@endif
             {{ $breadcrumb['name'] }}
         </a>
@@ -67,7 +67,7 @@
     <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4"><i class="fas fa-folder mr-2"></i>Folders ({{ $folders->count() }})</h3>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         @foreach($folders as $folder)
-        <div class="bg-white rounded-xl border border-gray-200 p-4 hover-lift cursor-pointer group relative drag-item"
+        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-4 hover-lift cursor-pointer group relative drag-item"
              draggable="true"
              data-type="folder" data-id="{{ $folder->id }}" data-name="{{ $folder->name }}" data-path="{{ $folder->path }}" data-hidden="{{ $folder->is_hidden ? '1' : '0' }}" data-locked="{{ $folder->lock_password ? '1' : '0' }}"
              onclick="window.location='{{ route('drive.index', ['folder' => $folder->path]) }}'"
@@ -77,7 +77,7 @@
                     <i class="fas fa-folder text-amber-500 text-xl"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <p class="font-medium text-gray-800 truncate">{{ $folder->name }}</p>
+                    <p class="font-medium text-white truncate">{{ $folder->name }}</p>
                     <p class="text-xs text-gray-500">{{ $folder->created_at->format('d M Y') }}</p>
                 </div>
                 @if($folder->lock_password)
@@ -99,7 +99,7 @@
     <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4"><i class="fas fa-file mr-2"></i>Files ({{ $files->count() }})</h3>
     <div class="space-y-3">
         @foreach($files as $file)
-        <div class="bg-white rounded-xl border border-gray-200 p-4 hover-lift cursor-pointer drag-item"
+        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-4 hover-lift cursor-pointer drag-item"
              draggable="true"
              data-type="file" data-id="{{ $file->id }}" data-name="{{ $file->original_name }}" data-folder="{{ $file->folder }}" data-hidden="{{ $file->is_hidden ? '1' : '0' }}" data-locked="{{ $file->lock_password ? '1' : '0' }}" data-encrypted="{{ $file->is_encrypted ? '1' : '0' }}" data-shared="{{ $file->isShared() ? '1' : '0' }}" data-mime="{{ $file->mime_type }}"
              ondblclick="openFilePreview({{ $file->id }}, '{{ $file->original_name }}', '{{ $file->mime_type }}', {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }})"
@@ -110,12 +110,12 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
-                        <p class="font-medium text-gray-800">{{ $file->original_name }}</p>
+                        <p class="font-medium text-white">{{ $file->original_name }}</p>
                         @if($file->isShared())<span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full"><i class="fas fa-share-alt mr-1"></i>Shared</span>@endif
                         @if($file->lock_password)<span class="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full"><i class="fas fa-lock mr-1"></i>Locked</span>@endif
                         @if($file->is_hidden)<span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full"><i class="fas fa-eye-slash mr-1"></i>Hidden</span>@endif
                     </div>
-                    <p class="text-xs text-gray-500 mt-1">{{ $file->formatSize() }} &middot; {{ $file->mime_type }} &middot; {{ $file->updated_at->format('d M Y') }}</p>
+                    <p class="text-xs text-gray-400 mt-1">{{ $file->formatSize() }} &middot; {{ $file->mime_type }} &middot; {{ $file->updated_at->format('d M Y') }}</p>
                 </div>
             </div>
         </div>
@@ -141,52 +141,52 @@
 
 @section('modals')
 <!-- Context Menu -->
-<div id="contextMenu" class="hidden fixed z-50 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 w-56">
-    <button id="ctxDownload" onclick="ctxAction('download')" class="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center gap-3"><i class="fas fa-download text-indigo-500 w-5"></i>Download</button>
-    <button id="ctxShare" onclick="ctxAction('share')" class="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center gap-3"><i class="fas fa-share-alt text-green-500 w-5"></i>Share</button>
-    <button id="ctxUnshare" onclick="ctxAction('unshare')" class="hidden w-full px-4 py-2.5 text-left text-sm hover:bg-orange-50 text-orange-600 flex items-center gap-3"><i class="fas fa-ban w-5"></i>Unshare</button>
-    <hr class="my-1">
-    <button id="ctxHide" onclick="ctxAction('hide')" class="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center gap-3"><i class="fas fa-eye-slash text-yellow-500 w-5"></i><span id="ctxHideText">Hide</span></button>
-    <button id="ctxLock" onclick="ctxAction('lock')" class="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center gap-3"><i class="fas fa-lock text-red-500 w-5"></i><span id="ctxLockText">Lock</span></button>
-    <hr class="my-1">
-    <button onclick="ctxAction('delete')" class="w-full px-4 py-2.5 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-3"><i class="fas fa-trash w-5"></i>Delete</button>
+<div id="contextMenu" class="hidden fixed z-50 bg-[#0f1f3d] rounded-xl shadow-2xl border border-[#1d3566] py-2 w-56">
+    <button id="ctxDownload" onclick="ctxAction('download')" class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-[#162a52] flex items-center gap-3"><i class="fas fa-download text-[#d4a843] w-5"></i>Download</button>
+    <button id="ctxShare" onclick="ctxAction('share')" class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-[#162a52] flex items-center gap-3"><i class="fas fa-share-alt text-green-400 w-5"></i>Share</button>
+    <button id="ctxUnshare" onclick="ctxAction('unshare')" class="hidden w-full px-4 py-2.5 text-left text-sm text-orange-400 hover:bg-[#162a52] flex items-center gap-3"><i class="fas fa-ban w-5"></i>Unshare</button>
+    <hr class="my-1 border-[#1d3566]">
+    <button id="ctxHide" onclick="ctxAction('hide')" class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-[#162a52] flex items-center gap-3"><i class="fas fa-eye-slash text-yellow-400 w-5"></i><span id="ctxHideText">Hide</span></button>
+    <button id="ctxLock" onclick="ctxAction('lock')" class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-[#162a52] flex items-center gap-3"><i class="fas fa-lock text-red-400 w-5"></i><span id="ctxLockText">Lock</span></button>
+    <hr class="my-1 border-[#1d3566]">
+    <button onclick="ctxAction('delete')" class="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-900/30 flex items-center gap-3"><i class="fas fa-trash w-5"></i>Delete</button>
 </div>
 
 <!-- Upload Modal -->
 <div id="uploadModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4">
-        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-800">Upload File</h3>
-            <button onclick="closeUploadModal()" class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><i class="fas fa-times text-gray-500"></i></button>
+    <div class="bg-[#0f1f3d] rounded-2xl shadow-2xl w-full max-w-lg mx-4 border border-[#1d3566]">
+        <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white">Upload File</h3>
+            <button onclick="closeUploadModal()" class="w-8 h-8 rounded-lg hover:bg-[#162a52] flex items-center justify-center"><i class="fas fa-times text-gray-400"></i></button>
         </div>
         <form id="uploadForm" enctype="multipart/form-data" class="p-6">
             @csrf
             <input type="hidden" name="folder" value="{{ $currentFolder }}">
             <div class="mb-6">
-                <div class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-indigo-400 transition cursor-pointer" onclick="document.getElementById('fileInput').click()">
-                    <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
-                    <p class="text-gray-600 mb-2">Click to select file</p>
+                <div class="border-2 border-dashed border-[#1d3566] rounded-xl p-8 text-center hover:border-[#d4a843] transition cursor-pointer" onclick="document.getElementById('fileInput').click()">
+                    <i class="fas fa-cloud-upload-alt text-4xl text-[#d4a843] mb-3"></i>
+                    <p class="text-gray-300 mb-2">Click to select file</p>
                     <p class="text-xs text-gray-500">Max 100MB</p>
                     <input type="file" id="fileInput" name="file" class="hidden" onchange="handleFileSelect(this)">
                 </div>
-                <div id="selectedFile" class="hidden mt-4 p-4 bg-gray-50 rounded-xl flex items-center gap-3">
-                    <i class="fas fa-file text-indigo-500"></i>
-                    <span id="fileName" class="text-sm text-gray-700 flex-1"></span>
-                    <button type="button" onclick="clearFileSelection()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+                <div id="selectedFile" class="hidden mt-4 p-4 bg-[#162a52] rounded-xl flex items-center gap-3">
+                    <i class="fas fa-file text-[#d4a843]"></i>
+                    <span id="fileName" class="text-sm text-gray-300 flex-1"></span>
+                    <button type="button" onclick="clearFileSelection()" class="text-gray-500 hover:text-gray-300"><i class="fas fa-times"></i></button>
                 </div>
             </div>
             <div class="mb-6">
                 <label class="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" name="is_locked" value="1" id="lockToggle" onchange="togglePasswordField()" class="w-5 h-5 rounded text-indigo-600">
-                    <div><span class="text-sm font-medium text-gray-700"><i class="fas fa-lock text-red-500 mr-1"></i>Lock File</span><p class="text-xs text-gray-500">Encrypt & lock — file cannot be deleted until unlocked</p></div>
+                    <input type="checkbox" name="is_locked" value="1" id="lockToggle" onchange="togglePasswordField()" class="w-5 h-5 rounded accent-[#d4a843]">
+                    <div><span class="text-sm font-medium text-white"><i class="fas fa-lock text-red-400 mr-1"></i>Lock File</span><p class="text-xs text-gray-400">Encrypt & lock — file cannot be deleted until unlocked</p></div>
                 </label>
             </div>
             <div id="passwordField" class="hidden mb-6">
-                <input type="password" name="lock_password" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Lock password">
+                <input type="password" name="lock_password" class="w-full px-4 py-3 border border-[#1d3566] bg-[#162a52] rounded-xl focus:ring-2 focus:ring-[#d4a843] outline-none text-white" placeholder="Lock password">
             </div>
             <div class="flex gap-3">
-                <button type="button" onclick="closeUploadModal()" class="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button type="submit" id="uploadBtn" class="flex-1 btn-primary px-4 py-3 rounded-xl text-white font-medium disabled:opacity-50" disabled><i class="fas fa-upload mr-2"></i>Upload</button>
+                <button type="button" onclick="closeUploadModal()" class="flex-1 px-4 py-3 border border-[#1d3566] rounded-xl text-gray-400 hover:bg-[#162a52]">Cancel</button>
+                <button type="submit" id="uploadBtn" class="flex-1 btn-primary px-4 py-3 rounded-xl font-medium disabled:opacity-50" disabled><i class="fas fa-upload mr-2"></i>Upload</button>
             </div>
         </form>
     </div>
@@ -194,10 +194,10 @@
 
 <!-- Folder Modal -->
 <div id="folderModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
-        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-800">Create Folder</h3>
-            <button onclick="closeFolderModal()" class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><i class="fas fa-times text-gray-500"></i></button>
+    <div class="bg-[#0f1f3d] rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-[#1d3566]">
+        <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white">Create Folder</h3>
+            <button onclick="closeFolderModal()" class="w-8 h-8 rounded-lg hover:bg-[#162a52] flex items-center justify-center"><i class="fas fa-times text-gray-400"></i></button>
         </div>
         <form id="folderForm" class="p-6">
             @csrf
@@ -213,9 +213,9 @@
 
 <!-- Lock/Unlock Modal -->
 <div id="lockModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
-        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-800"><i class="fas fa-lock text-red-500 mr-2"></i><span id="lockModalTitle">Lock File</span></h3>
+    <div class="bg-[#0f1f3d] rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-[#1d3566]">
+        <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white"><i class="fas fa-lock text-red-400 mr-2"></i><span id="lockModalTitle">Lock File</span></h3>
             <button onclick="closeLockModal()" class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><i class="fas fa-times text-gray-500"></i></button>
         </div>
         <form id="lockForm" class="p-6">
@@ -234,9 +234,9 @@
 
 <!-- Decrypt Modal -->
 <div id="decryptModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
-        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-800"><i class="fas fa-lock text-green-500 mr-2"></i>Download Encrypted File</h3>
+    <div class="bg-[#0f1f3d] rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-[#1d3566]">
+        <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white"><i class="fas fa-lock text-green-400 mr-2"></i>Download Encrypted File</h3>
             <button onclick="closeDecryptModal()" class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><i class="fas fa-times text-gray-500"></i></button>
         </div>
         <form id="decryptForm" class="p-6">
@@ -253,9 +253,9 @@
 
 <!-- Share Modal -->
 <div id="shareModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
-        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-800"><i class="fas fa-share-alt text-indigo-500 mr-2"></i>Share File</h3>
+    <div class="bg-[#0f1f3d] rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-[#1d3566]">
+        <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white"><i class="fas fa-share-alt text-[#d4a843] mr-2"></i>Share File</h3>
             <button onclick="closeShareModal()" class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><i class="fas fa-times text-gray-500"></i></button>
         </div>
         <form id="shareForm" class="p-6">
@@ -646,8 +646,8 @@ async function acceptShare() {
 <!-- Share Receive Modal -->
 @if(!empty($shareToken))
 <div id="shareReceiveModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-        <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 text-center relative">
+    <div class="bg-[#0f1f3d] rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-[#1d3566]">
+        <div class="bg-gradient-to-r from-[#d4a843] to-[#b8912e] p-6 text-center relative">
             <button onclick="document.getElementById('shareReceiveModal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition">
                 <i class="fas fa-times"></i>
             </button>

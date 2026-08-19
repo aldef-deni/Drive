@@ -7,7 +7,7 @@
 <div class="max-w-3xl mx-auto space-y-8">
 
     <!-- Avatar Section -->
-    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+    <div class="bg-[#0f1f3d] rounded-2xl border border-[#1d3566] overflow-hidden">
         <div class="p-6 border-b border-gray-100">
             <h2 class="text-lg font-semibold text-gray-800"><i class="fas fa-camera text-indigo-500 mr-2"></i>Foto Profil</h2>
         </div>
@@ -62,7 +62,7 @@
     </div>
 
     <!-- Profile Info Section -->
-    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+    <div class="bg-[#0f1f3d] rounded-2xl border border-[#1d3566] overflow-hidden">
         <div class="p-6 border-b border-gray-100">
             <h2 class="text-lg font-semibold text-gray-800"><i class="fas fa-user text-indigo-500 mr-2"></i>Informasi Profil</h2>
         </div>
@@ -90,7 +90,7 @@
     </div>
 
     <!-- Password Section -->
-    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+    <div class="bg-[#0f1f3d] rounded-2xl border border-[#1d3566] overflow-hidden">
         <div class="p-6 border-b border-gray-100">
             <h2 class="text-lg font-semibold text-gray-800"><i class="fas fa-lock text-indigo-500 mr-2"></i>Ubah Password</h2>
         </div>
@@ -123,7 +123,7 @@
     </div>
 
     <!-- Account Info -->
-    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+    <div class="bg-[#0f1f3d] rounded-2xl border border-[#1d3566] overflow-hidden">
         <div class="p-6 border-b border-gray-100">
             <h2 class="text-lg font-semibold text-gray-800"><i class="fas fa-info-circle text-indigo-500 mr-2"></i>Informasi Akun</h2>
         </div>

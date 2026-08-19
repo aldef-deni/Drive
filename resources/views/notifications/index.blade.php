@@ -19,7 +19,7 @@
     <div class="space-y-3">
         @foreach($notifications as $notif)
         <a href="{{ $notif->url ? route('notifications.read', $notif) : '#' }}"
-           class="block bg-white rounded-xl border p-4 transition hover:shadow-md {{ $notif->is_read ? 'border-gray-100' : 'border-indigo-200 bg-indigo-50/30' }}">
+           class="block bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-4 transition hover:shadow-md {{ $notif->is_read ? '' : 'border-[#d4a843]/40 bg-[#162a52]/50' }}">
             <div class="flex items-start gap-4">
                 <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
                     @if($notif->color === 'amber') bg-amber-100 text-amber-600

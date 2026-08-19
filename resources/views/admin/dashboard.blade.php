@@ -6,60 +6,60 @@
 @section('content')
 <!-- Stats Cards -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <div class="bg-white rounded-2xl border border-gray-200 p-6 hover-lift">
+    <div class="bg-[#0f1f3d] rounded-2xl border border-[#1d3566] p-6 hover-lift">
         <div class="flex items-center gap-4">
             <div class="w-14 h-14 rounded-xl bg-indigo-100 flex items-center justify-center">
                 <i class="fas fa-users text-2xl text-indigo-600"></i>
             </div>
             <div>
-                <p class="text-sm text-gray-500">Total Users</p>
-                <p class="text-2xl font-bold text-gray-800">{{ $stats['total_users'] }}</p>
+                <p class="text-sm text-gray-400">Total Users</p>
+                <p class="text-2xl font-bold text-white">{{ $stats['total_users'] }}</p>
             </div>
         </div>
     </div>
     
-    <div class="bg-white rounded-2xl border border-gray-200 p-6 hover-lift">
+    <div class="bg-[#0f1f3d] rounded-2xl border border-[#1d3566] p-6 hover-lift">
         <div class="flex items-center gap-4">
             <div class="w-14 h-14 rounded-xl bg-green-100 flex items-center justify-center">
                 <i class="fas fa-user-check text-2xl text-green-600"></i>
             </div>
             <div>
                 <p class="text-sm text-gray-500">Active Users</p>
-                <p class="text-2xl font-bold text-gray-800">{{ $stats['active_users'] }}</p>
+                <p class="text-2xl font-bold text-white">{{ $stats['active_users'] }}</p>
             </div>
         </div>
     </div>
     
-    <div class="bg-white rounded-2xl border border-gray-200 p-6 hover-lift">
+    <div class="bg-[#0f1f3d] rounded-2xl border border-[#1d3566] p-6 hover-lift">
         <div class="flex items-center gap-4">
             <div class="w-14 h-14 rounded-xl bg-purple-100 flex items-center justify-center">
                 <i class="fas fa-hdd text-2xl text-purple-600"></i>
             </div>
             <div>
-                <p class="text-sm text-gray-500">Total Storage</p>
-                <p class="text-2xl font-bold text-gray-800">{{ \App\Models\User::formatStorageSize($stats['total_storage_used']) }}</p>
+                <p class="text-sm text-gray-400">Total Storage</p>
+                <p class="text-2xl font-bold text-white">{{ \App\Models\User::formatStorageSize($stats['total_storage_used']) }}</p>
             </div>
         </div>
     </div>
     
-    <div class="bg-white rounded-2xl border border-gray-200 p-6 hover-lift">
+    <div class="bg-[#0f1f3d] rounded-2xl border border-[#1d3566] p-6 hover-lift">
         <div class="flex items-center gap-4">
             <div class="w-14 h-14 rounded-xl bg-amber-100 flex items-center justify-center">
                 <i class="fas fa-file text-2xl text-amber-600"></i>
             </div>
             <div>
-                <p class="text-sm text-gray-500">Total Files</p>
-                <p class="text-2xl font-bold text-gray-800">{{ $stats['total_files'] }}</p>
+                <p class="text-sm text-gray-400">Total Files</p>
+                <p class="text-2xl font-bold text-white">{{ $stats['total_files'] }}</p>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Users Table -->
-<div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+<div class="bg-[#0f1f3d] rounded-2xl border border-[#1d3566] overflow-hidden">
     <div class="p-6 border-b border-gray-100">
         <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-gray-800">User Management</h2>
+            <h2 class="text-lg font-semibold text-white">User Management</h2>
             <a href="{{ route('admin.users') }}" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
                 View All <i class="fas fa-arrow-right ml-1"></i>
             </a>

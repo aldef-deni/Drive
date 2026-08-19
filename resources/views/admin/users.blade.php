@@ -4,14 +4,14 @@
 @section('page-title', 'User Management')
 
 @section('content')
-<div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+<div class="bg-[#0f1f3d] rounded-2xl border border-[#1d3566] overflow-hidden">
     <div class="p-6 border-b border-gray-100">
         <h2 class="text-lg font-semibold text-gray-800">All Users</h2>
     </div>
     
     <div class="space-y-3">
         @foreach($users as $user)
-        <div class="bg-white rounded-xl border border-gray-200 p-4 hover-lift">
+        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-4 hover-lift">
             <div class="flex items-center gap-4">
                 <!-- Avatar -->
                 <div class="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold flex-shrink-0">

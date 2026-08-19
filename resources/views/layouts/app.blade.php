@@ -18,61 +18,81 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <style>
+        /* Premium Navy + Gold Theme */
+        :root {
+            --navy-900: #0a1628;
+            --navy-800: #0f1f3d;
+            --navy-700: #162a52;
+            --navy-600: #1d3566;
+            --gold-500: #d4a843;
+            --gold-400: #e4be5a;
+            --gold-600: #b8912e;
+        }
         .gradient-bg {
-            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%);
+            background: linear-gradient(180deg, #0a1628 0%, #0f1f3d 50%, #162a52 100%);
         }
         .glass-card {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(212, 168, 67, 0.15);
         }
         .premium-shadow {
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
         }
         .hover-lift {
             transition: all 0.3s ease;
         }
         .hover-lift:hover {
             transform: translateY(-2px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.15), 0 4px 10px -4px rgba(0, 0, 0, 0.1);
         }
         .sidebar-link {
             transition: all 0.2s ease;
+            border-left: 3px solid transparent;
         }
         .sidebar-link:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(212, 168, 67, 0.1);
             transform: translateX(4px);
         }
         .sidebar-link.active {
-            background: rgba(255, 255, 255, 0.15);
-            border-left: 3px solid #818cf8;
+            background: rgba(212, 168, 67, 0.15);
+            border-left-color: #d4a843;
+            color: #e4be5a;
         }
         .file-drop-zone {
-            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border: 2px dashed rgba(212, 168, 67, 0.4);
             transition: all 0.3s ease;
         }
         .file-drop-zone.dragover {
-            border-color: #818cf8;
-            background: rgba(129, 140, 248, 0.1);
+            border-color: #d4a843;
+            background: rgba(212, 168, 67, 0.05);
         }
         .progress-bar {
-            background: linear-gradient(90deg, #818cf8, #6366f1);
+            background: linear-gradient(90deg, #d4a843, #b8912e);
         }
         .btn-primary {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            background: linear-gradient(135deg, #d4a843, #b8912e);
+            color: #0a1628;
+            font-weight: 600;
             transition: all 0.3s ease;
         }
         .btn-primary:hover {
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            background: linear-gradient(135deg, #e4be5a, #d4a843);
             transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(212, 168, 67, 0.35);
         }
         .modal-overlay {
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
+            background: rgba(10, 22, 40, 0.8);
+            backdrop-filter: blur(6px);
         }
+        /* Premium scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f1f3d; }
+        ::-webkit-scrollbar-thumb { background: #d4a843; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #e4be5a; }
     </style>
 </head>
-<body class="font-sans antialiased bg-gray-50">
+<body class="font-sans antialiased bg-[#0e1a2e]">
     <div class="min-h-screen flex">
         <!-- Sidebar -->
         @auth
@@ -126,7 +146,7 @@
             <!-- User Menu -->
             <div class="p-4 border-t border-white/10">
                 <a href="{{ route('profile.show') }}" class="flex items-center gap-3 p-2 rounded-lg hover:bg-white/10 transition group">
-                    <div class="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center font-bold flex-shrink-0">
+                    <div class="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-[#d4a843] to-[#b8912e] flex items-center justify-center font-bold text-[#0a1628] flex-shrink-0">
                         @if(auth()->user()->avatar)
                             <img src="{{ asset('storage/avatars/' . auth()->user()->avatar) }}" alt="" class="w-full h-full object-cover">
                         @else
@@ -155,9 +175,9 @@
         <main class="flex-1 overflow-auto">
             <!-- Top Bar -->
             @auth
-            <header class="bg-white border-b border-gray-200 px-6 py-4">
+            <header class="bg-[#0f1f3d] border-b border-[#1d3566] px-6 py-4">
                 <div class="flex items-center justify-between">
-                    <h1 class="text-xl font-bold text-gray-800">@yield('page-title', 'Dashboard')</h1>
+                    <h1 class="text-xl font-bold text-white">@yield('page-title', 'Dashboard')</h1>
                     <div class="flex items-center gap-4">
                         @yield('header-actions')
                         <!-- Notification Bell -->
@@ -167,8 +187,8 @@
                                 ->orderByDesc('created_at')->take(5)->get();
                         @endphp
                         <div class="relative">
-                            <button onclick="toggleNotifDropdown()" class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 transition">
-                                <i class="fas fa-bell text-gray-600"></i>
+                            <button onclick="toggleNotifDropdown()" class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-[#162a52] hover:bg-[#1d3566] transition">
+                                <i class="fas fa-bell text-[#d4a843]"></i>
                                 @if($unreadCount > 0)
                                 <span class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow">
                                     {{ $unreadCount > 9 ? '9+' : $unreadCount }}
@@ -176,9 +196,9 @@
                                 @endif
                             </button>
                             <!-- Dropdown -->
-                            <div id="notifPanel" class="hidden absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
+                            <div id="notifPanel" class="hidden absolute right-0 top-12 w-80 bg-[#0f1f3d] rounded-2xl shadow-2xl border border-[#1d3566] z-50 overflow-hidden">
                                 <div class="p-4 border-b border-gray-100 flex items-center justify-between">
-                                    <h3 class="font-semibold text-gray-800 text-sm">Notifikasi</h3>
+                                    <h3 class="font-semibold text-white text-sm">Notifikasi</h3>
                                     @if($unreadCount > 0)
                                     <form action="{{ route('notifications.read-all') }}" method="POST" class="inline">
                                         @csrf
@@ -189,7 +209,7 @@
                                 <div class="max-h-80 overflow-y-auto">
                                     @if($latestNotifs->count() > 0)
                                         @foreach($latestNotifs as $notif)
-                                        <a href="{{ $notif->url ? $notif->url : '#' }}" class="block px-4 py-3 hover:bg-gray-50 transition border-b border-gray-50 {{ !$notif->is_read ? 'bg-indigo-50/40' : '' }}">
+                                        <a href="{{ $notif->url ? $notif->url : '#' }}" class="block px-4 py-3 hover:bg-[#162a52] transition border-b border-[#1d3566] {{ !$notif->is_read ? 'bg-[#162a52]/50' : '' }}">
                                             <div class="flex items-start gap-3">
                                                 <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5
                                                     @if($notif->color === 'amber') bg-amber-100 text-amber-600
@@ -200,9 +220,9 @@
                                                     <i class="{{ $notif->icon ?? 'fas fa-bell' }} text-xs"></i>
                                                 </div>
                                                 <div class="flex-1 min-w-0">
-                                                    <p class="text-sm font-medium text-gray-800 truncate">{{ $notif->title }}</p>
-                                                    <p class="text-xs text-gray-500 truncate">{{ $notif->message }}</p>
-                                                    <p class="text-xs text-gray-400 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
+                                                    <p class="text-sm font-medium text-white truncate">{{ $notif->title }}</p>
+                                                    <p class="text-xs text-gray-400 truncate">{{ $notif->message }}</p>
+                                                    <p class="text-xs text-gray-500 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
                                                 </div>
                                                 @if(!$notif->is_read)
                                                 <span class="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0 mt-2"></span>
@@ -212,12 +232,12 @@
                                         @endforeach
                                     @else
                                         <div class="py-8 text-center">
-                                            <i class="fas fa-bell-slash text-gray-300 text-2xl mb-2"></i>
-                                            <p class="text-gray-400 text-sm">Belum ada notifikasi</p>
+                                            <i class="fas fa-bell-slash text-gray-600 text-2xl mb-2"></i>
+                                            <p class="text-gray-500 text-sm">Belum ada notifikasi</p>
                                         </div>
                                     @endif
                                 </div>
-                                <a href="{{ route('notifications.index') }}" class="block text-center py-3 text-sm font-medium text-indigo-600 hover:bg-indigo-50 border-t border-gray-100 transition">
+                                <a href="{{ route('notifications.index') }}" class="block text-center py-3 text-sm font-medium text-[#d4a843] hover:bg-[#162a52] border-t border-[#1d3566] transition">
                                     Lihat Semua <i class="fas fa-arrow-right ml-1"></i>
                                 </a>
                             </div>
@@ -228,17 +248,17 @@
             @endauth
             
             <!-- Page Content -->
-            <div class="p-6">
+            <div class="p-6 bg-[#0e1a2e] min-h-[calc(100vh-64px)]">
                 @if(session('success'))
-                <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 flex items-center gap-3">
-                    <i class="fas fa-check-circle"></i>
+                <div class="mb-6 p-4 bg-[#0d3320] border border-green-700 rounded-lg text-green-300 flex items-center gap-3">
+                    <i class="fas fa-check-circle text-green-400"></i>
                     {{ session('success') }}
                 </div>
                 @endif
                 
                 @if(session('error'))
-                <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-3">
-                    <i class="fas fa-exclamation-circle"></i>
+                <div class="mb-6 p-4 bg-[#3b1010] border border-red-700 rounded-lg text-red-300 flex items-center gap-3">
+                    <i class="fas fa-exclamation-circle text-red-400"></i>
                     {{ session('error') }}
                 </div>
                 @endif
