@@ -128,7 +128,15 @@ Autentikasi API memakai guard token bawaan (`auth:api`).
 | `resources/views/layouts/app.blade.php` | Layout, sistem desain (navy + gold) |
 | `app/Models/Setting.php` | Pengaturan aplikasi, termasuk kata kunci rahasia |
 | `app/Http/Controllers/ProfileController.php` | Profil, avatar, dan penyajian file avatar |
-| `drive-mobile/` | Aplikasi React Native (Expo) |
+
+## Aplikasi Mobile
+
+Aplikasi Android tidak berada di repositori ini. Sumbernya ada di repositori
+terpisah pada folder `dekorasi.me/drive-mobile` (React Native / Expo SDK 54),
+lengkap dengan panduan build APK dan keystore penandatangannya.
+
+Aplikasi itu memakai endpoint pada `routes/api.php`. Bila mengubah bentuk
+respons API, sesuaikan juga `src/config/api.js` di proyek mobile.
 
 ## Lisensi
 
