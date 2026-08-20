@@ -70,15 +70,24 @@ class AdminController extends Controller
             'email' => 'required|email|unique:users,email,' . $user->id,
             'role' => 'required|in:admin,user',
             'storage_quota' => 'required|integer|min:10485760', // 10MB minimum
-            'is_active' => 'required|boolean',
+            'is_active' => 'nullable|boolean',
         ]);
+
+        // Checkbox yang tidak dicentang tidak ikut terkirim — anggap non-aktif.
+        $isActive = $request->boolean('is_active');
+
+        if ($user->id === Auth::id() && (!$isActive || $request->role !== 'admin')) {
+            return back()
+                ->withInput()
+                ->with('error', 'Tidak bisa menurunkan role atau menonaktifkan akun sendiri');
+        }
 
         $user->update([
             'name' => $request->name,
             'email' => $request->email,
             'role' => $request->role,
             'storage_quota' => $request->storage_quota,
-            'is_active' => $request->is_active,
+            'is_active' => $isActive,
         ]);
 
         return redirect()->route('admin.users')
@@ -99,6 +108,14 @@ class AdminController extends Controller
             $fullPath = storage_path('app/drive/' . $file->path);
             if (file_exists($fullPath)) {
                 unlink($fullPath);
+            }
+        }
+
+        // Delete avatar
+        if ($user->avatar) {
+            $avatarPath = storage_path('app/public/avatars/' . $user->avatar);
+            if (file_exists($avatarPath)) {
+                unlink($avatarPath);
             }
         }
 
@@ -126,11 +143,12 @@ class AdminController extends Controller
     /**
      * Reset user storage.
      */
-    public function resetStorage(User $user)
+    public function resetStorage(User $user, \App\Services\StorageService $storageService)
     {
-        $user->update(['storage_used' => 0]);
+        // Hitung ulang dari file yang benar-benar ada, bukan sekadar dinolkan.
+        $storageService->recalculateStorage($user);
 
-        return back()->with('success', 'Storage user berhasil direset');
+        return back()->with('success', 'Pemakaian storage user berhasil dihitung ulang');
     }
 
 }

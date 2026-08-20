@@ -185,11 +185,11 @@ class ApiService {
   }
 
   unhideFile(fileId, password) {
-    return this.request('POST', `/api/drive/hidden/${fileId}/unhide`, { password });
+    return this.request('POST', `/api/drive/hidden/file/${fileId}/unhide`, { password });
   }
 
   unhideFolder(folderId, password) {
-    return this.request('POST', `/api/drive/hidden/${folderId}/unhide`, { password });
+    return this.request('POST', `/api/drive/hidden/folder/${folderId}/unhide`, { password });
   }
 
   // Profile

@@ -41,7 +41,10 @@ class FileFolder extends Model
     public function hasLockedFiles(): bool
     {
         return File::where('user_id', $this->user_id)
-            ->where('folder', 'like', $this->path . '%')
+            ->where(function ($query) {
+                $query->where('folder', $this->path)
+                    ->orWhere('folder', 'like', rtrim($this->path, '/') . '/%');
+            })
             ->whereNotNull('lock_password')
             ->exists();
     }

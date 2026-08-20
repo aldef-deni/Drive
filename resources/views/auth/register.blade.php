@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Register - Dekorasi Drive</title>
     <link rel="icon" href="{{ asset('logo-dekorasi.png') }}" type="image/png">
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -17,8 +17,10 @@
         }
         
         html, body {
-            height: 100%;
-            overflow: hidden;
+            min-height: 100%;
+            /* Jangan kunci scroll: pada layar pendek kartu form bisa terpotong. */
+            overflow-x: hidden;
+            overflow-y: auto;
         }
         
         :root {
@@ -39,22 +41,24 @@
                 radial-gradient(ellipse at 50% 50%, rgba(22, 42, 82, 0.5) 0%, transparent 70%),
                 linear-gradient(135deg, #060d18 0%, #0a1628 25%, #0f1f3d 50%, #162a52 75%, #0f1f3d 100%);
             min-height: 100vh;
-            height: 100vh;
             display: flex;
+            padding: 2rem 0;
             align-items: center;
             justify-content: center;
             position: relative;
-            overflow: hidden;
+            overflow-x: hidden;
         }
-        
+
         /* Animated gold particles */
         .login-bg::before {
             content: '';
-            position: absolute;
+            /* fixed: partikel dekoratif tidak boleh ikut menambah tinggi halaman */
+            position: fixed;
             top: -50%;
             left: -50%;
             width: 200%;
             height: 200%;
+            z-index: 0;
             background: 
                 radial-gradient(2px 2px at 20% 30%, rgba(212, 168, 67, 0.3) 0%, transparent 100%),
                 radial-gradient(2px 2px at 40% 70%, rgba(212, 168, 67, 0.2) 0%, transparent 100%),
@@ -75,7 +79,7 @@
         /* Gold line accent */
         .login-bg::after {
             content: '';
-            position: absolute;
+            position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
@@ -278,17 +282,17 @@
     </style>
 </head>
 <body class="login-bg">
-    <div class="w-full max-w-md px-4 max-h-[100vh] overflow-y-auto py-6">
+    <div class="w-full max-w-md px-4 relative z-10">
         <!-- Logo -->
         <div class="text-center mb-5">
             <img src="{{ asset('logo-dekorasi.png') }}" alt="Logo" class="w-16 h-16 mx-auto rounded-2xl logo-emboss mb-3">
             <h1 class="text-2xl font-bold text-white title-glow">Dekorasi Drive</h1>
-            <p class="text-white/40 text-sm mt-1">Create Your Account</p>
+            <p class="text-white/40 text-sm mt-1">Buat Akun Baru</p>
         </div>
         
         <!-- Register Card -->
         <div class="embossed-card p-6 md:p-7">
-            <h2 class="text-xl font-bold text-white mb-5 title-glow">Sign Up</h2>
+            <h2 class="text-xl font-bold text-white mb-5 title-glow">Daftar</h2>
             
             @if($errors->any())
             <div class="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-sm">
@@ -305,20 +309,20 @@
                 @csrf
                 
                 <div class="mb-3">
-                    <label class="block text-white/60 text-sm mb-1.5 font-medium">Full Name</label>
+                    <label class="block text-white/60 text-sm mb-1.5 font-medium">Nama Lengkap</label>
                     <div class="input-premium">
                         <i class="fas fa-user input-icon"></i>
                         <input type="text" name="name" value="{{ old('name') }}" required autofocus
-                            placeholder="Enter your name">
+                            placeholder="Masukkan nama lengkap">
                     </div>
                 </div>
                 
                 <div class="mb-3">
-                    <label class="block text-white/60 text-sm mb-1.5 font-medium">Email Address</label>
+                    <label class="block text-white/60 text-sm mb-1.5 font-medium">Alamat Email</label>
                     <div class="input-premium">
                         <i class="fas fa-envelope input-icon"></i>
                         <input type="email" name="email" value="{{ old('email') }}" required
-                            placeholder="Enter your email">
+                            placeholder="Masukkan email Anda">
                     </div>
                 </div>
                 
@@ -327,7 +331,7 @@
                     <div class="input-premium">
                         <i class="fas fa-lock input-icon"></i>
                         <input type="password" name="password" id="password" required
-                            placeholder="Create a password">
+                            placeholder="Minimal 8 karakter">
                         <span class="password-toggle" onclick="togglePassword()">
                             <i class="fas fa-eye" id="eyeIcon"></i>
                         </span>
@@ -335,11 +339,11 @@
                 </div>
                 
                 <div class="mb-5">
-                    <label class="block text-white/60 text-sm mb-1.5 font-medium">Confirm Password</label>
+                    <label class="block text-white/60 text-sm mb-1.5 font-medium">Konfirmasi Password</label>
                     <div class="input-premium">
                         <i class="fas fa-lock input-icon"></i>
                         <input type="password" name="password_confirmation" id="password_confirmation" required
-                            placeholder="Confirm your password">
+                            placeholder="Ulangi password">
                         <span class="password-toggle" onclick="togglePasswordConfirm()">
                             <i class="fas fa-eye" id="eyeIconConfirm"></i>
                         </span>
@@ -347,14 +351,14 @@
                 </div>
                 
                 <button type="submit" class="btn-premium w-full">
-                    <i class="fas fa-user-plus mr-2"></i> Create Account
+                    <i class="fas fa-user-plus mr-2"></i> Buat Akun
                 </button>
             </form>
             
             <div class="mt-5 pt-4 divider-gold">
                 <p class="text-center text-white/35 text-sm">
-                    Already have an account? 
-                    <a href="{{ route('login') }}" class="text-[#d4a843] hover:text-[#e4be5a] font-semibold transition">Sign In</a>
+                    Sudah punya akun? 
+                    <a href="{{ route('login') }}" class="text-[#d4a843] hover:text-[#e4be5a] font-semibold transition">Masuk</a>
                 </p>
             </div>
         </div>

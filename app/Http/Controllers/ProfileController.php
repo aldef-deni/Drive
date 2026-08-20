@@ -113,11 +113,38 @@ class ProfileController extends Controller
 
         // Store new avatar
         $file = $request->file('avatar');
-        $filename = $user->id . '_' . time() . '.' . $file->getClientOriginalExtension();
-        $file->move(storage_path('app/public/avatars'), $filename);
+        $filename = $user->id . '_' . time() . '.' . strtolower($file->getClientOriginalExtension());
+
+        $directory = storage_path('app/public/avatars');
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $file->move($directory, $filename);
 
         $user->update(['avatar' => $filename]);
 
         return back()->with('success', 'Avatar berhasil diubah');
+    }
+
+    /**
+     * Hapus avatar.
+     */
+    public function destroyAvatar()
+    {
+        $user = Auth::user();
+
+        if (!$user->avatar) {
+            return back()->with('error', 'Tidak ada avatar untuk dihapus');
+        }
+
+        $path = storage_path('app/public/avatars/' . $user->avatar);
+        if (File::exists($path)) {
+            File::delete($path);
+        }
+
+        $user->update(['avatar' => null]);
+
+        return back()->with('success', 'Avatar berhasil dihapus');
     }
 }

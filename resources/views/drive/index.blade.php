@@ -1,994 +1,397 @@
 @extends('layouts.app')
 
-@section('title', 'My Drive - Dekorasi Drive')
-@section('page-title', 'My Drive')
+@section('title', 'Drive Saya - Dekorasi Drive')
+@section('page-title', 'Drive Saya')
 
 @section('header-actions')
-<!-- Search Bar - Desktop -->
-<div class="hidden md:block flex-1 max-w-md mx-4">
-    <form action="{{ route('drive.index') }}" method="GET" class="relative">
-        <input type="text" name="search" value="{{ $search ?? '' }}" placeholder='Pencarian File'
-            class="w-full pl-10 pr-4 py-2 rounded-xl border border-[#1d3566] focus:ring-2 focus:ring-[#d4a843] focus:border-transparent outline-none text-sm bg-[#162a52] text-white">
-        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-[#d4a843]"></i>
-        @if($search)
-        <a href="{{ route('drive.index') }}" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
-            <i class="fas fa-times"></i>
-        </a>
-        @endif
-    </form>
-</div>
-<!-- Mobile Upload Button -->
-<button onclick="openUploadModal()" class="md:hidden btn-primary w-10 h-10 rounded-xl flex items-center justify-center">
-    <i class="fas fa-cloud-upload-alt"></i>
+<!-- Pencarian (desktop) -->
+<form action="{{ route('drive.index') }}" method="GET" class="hidden md:block relative w-64 lg:w-80">
+    <input type="text" name="search" value="{{ $search ?? '' }}" placeholder="Cari file atau folder..."
+        class="field !py-2 !pl-10 !pr-9 text-sm">
+    <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gold-500 text-sm"></i>
+    @if($search)
+    <a href="{{ route('drive.index') }}" aria-label="Bersihkan pencarian" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+        <i class="fas fa-times"></i>
+    </a>
+    @endif
+</form>
+
+<!-- Tombol mobile -->
+<button onclick="openSearchMobile()" aria-label="Cari" class="md:hidden tap-target w-10 h-10 rounded-xl bg-navy-700 hover:bg-navy-600 flex items-center justify-center transition">
+    <i class="fas fa-search text-gold-500"></i>
 </button>
-<!-- Desktop Buttons -->
+<button onclick="openUploadModal()" aria-label="Unggah file" class="md:hidden btn-primary tap-target w-10 h-10 rounded-xl flex items-center justify-center">
+    <i class="fas fa-cloud-arrow-up"></i>
+</button>
+
+<!-- Tombol desktop -->
 <div class="hidden md:flex items-center gap-2">
-    <button onclick="openUploadModal()" class="btn-primary px-4 py-2 rounded-xl font-medium flex items-center gap-2">
-        <i class="fas fa-cloud-upload-alt"></i> Upload
+    <button onclick="openFolderModal()" class="btn-ghost px-4 py-2 rounded-xl flex items-center gap-2 text-sm">
+        <i class="fas fa-folder-plus"></i> Folder Baru
     </button>
-    <button onclick="openFolderModal()" class="bg-[#162a52] hover:bg-[#253f70] px-4 py-2 rounded-xl text-white font-medium flex items-center gap-2 transition">
-        <i class="fas fa-folder-plus"></i> New Folder
+    <button onclick="openUploadModal()" class="btn-primary px-4 py-2 rounded-xl flex items-center gap-2 text-sm">
+        <i class="fas fa-cloud-arrow-up"></i> Unggah
     </button>
 </div>
 @endsection
 
 @section('content')
+<!-- Pencarian (mobile) -->
+<form action="{{ route('drive.index') }}" method="GET" id="searchMobile" class="{{ $search ? '' : 'hidden' }} md:hidden relative mb-4">
+    <input type="text" name="search" value="{{ $search ?? '' }}" placeholder="Cari file atau folder..."
+        class="field !pl-10 text-sm">
+    <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gold-500 text-sm"></i>
+</form>
+
 @if($showHidden)
-<div class="mb-4 p-3 bg-[#d4a843]/10 border border-[#d4a843]/30 rounded-xl flex items-center gap-3">
-    <i class="fas fa-eye text-[#d4a843]"></i>
-    <span class="text-sm text-[#e4be5a] font-medium">Hidden files are visible (secret mode)</span>
-    <a href="{{ route('drive.index') }}" class="ml-auto text-[#d4a843] hover:text-[#e4be5a] text-sm"><i class="fas fa-times"></i></a>
+<div class="mb-4 p-3 bg-gold-500/10 border border-gold-500/30 rounded-xl flex items-center gap-3">
+    <i class="fas fa-eye text-gold-500"></i>
+    <span class="text-sm text-gold-400 font-medium">Mode rahasia aktif — file tersembunyi ikut ditampilkan</span>
+    <a href="{{ route('drive.index') }}" aria-label="Keluar mode rahasia" class="ml-auto text-gold-500 hover:text-gold-400"><i class="fas fa-times"></i></a>
 </div>
 @endif
 
-<!-- Breadcrumb + View Toggle -->
-<div class="flex items-center justify-between mb-6">
-    <nav class="flex items-center gap-2 text-sm flex-1 min-w-0">
+<!-- Breadcrumb + pengaturan tampilan -->
+<div class="flex items-center justify-between gap-3 mb-5">
+    <nav aria-label="Lokasi folder" class="flex items-center gap-2 text-sm flex-1 min-w-0 overflow-x-auto">
         @foreach($breadcrumbs as $index => $breadcrumb)
             @if($index > 0)
-            <i class="fas fa-chevron-right text-slate-400"></i>
+            <i class="fas fa-chevron-right text-slate-600 text-[10px] flex-shrink-0"></i>
             @endif
-            <a href="{{ route('drive.index', ['folder' => $breadcrumb['path']]) }}" class="text-slate-400 hover:text-[#d4a843] transition {{ $index === count($breadcrumbs) - 1 ? 'font-semibold text-white' : '' }}">
-                @if($index === 0)<i class="fas fa-hard-drive mr-1"></i>@endif
-                {{ $breadcrumb['name'] }}
+            <a href="{{ route('drive.index', ['folder' => $breadcrumb['path']]) }}"
+               class="flex-shrink-0 transition {{ $index === count($breadcrumbs) - 1 ? 'font-semibold text-white' : 'text-slate-400 hover:text-gold-500' }}">
+                @if($index === 0)<i class="fas fa-hard-drive mr-1.5"></i>@endif{{ $breadcrumb['name'] }}
             </a>
         @endforeach
     </nav>
-    <!-- View Toggle Dropdown -->
-    <div class="relative flex-shrink-0 ml-4">
-        <button onclick="toggleViewDropdown()" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#162a52] border border-[#1d3566] hover:border-[#d4a843]/50 transition text-sm">
-            <i class="fas fa-eye text-[#d4a843]"></i>
-            <span class="text-slate-300 hidden sm:inline">Tampilkan</span>
-            <i class="fas fa-chevron-down text-slate-500 text-xs"></i>
+
+    <div class="relative flex-shrink-0">
+        <button onclick="toggleViewDropdown(event)" class="btn-ghost flex items-center gap-2 px-3 py-2 rounded-xl text-sm">
+            <i class="fas fa-sliders text-gold-500"></i>
+            <span class="hidden sm:inline">Tampilan</span>
+            <i class="fas fa-chevron-down text-slate-500 text-[10px]"></i>
         </button>
-        <div id="viewDropdown" class="hidden absolute right-0 top-12 w-48 bg-[#0f1f3d] rounded-xl shadow-2xl border border-[#1d3566] z-50 overflow-hidden">
-            <button onclick="setView('list')" class="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:bg-[#162a52] transition" id="viewList">
-                <i class="fas fa-list text-[#d4a843] w-5"></i>
-                <span class="text-white">List</span>
-                <i class="fas fa-check text-[#d4a843] ml-auto text-xs hidden check-list"></i>
+        <div id="viewDropdown" class="hidden absolute right-0 top-12 w-48 panel z-40 overflow-hidden">
+            <button onclick="setView('list')" data-view-option="list" class="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:bg-navy-700 transition">
+                <i class="fas fa-list text-gold-500 w-5"></i><span class="text-white">Daftar</span>
+                <i class="fas fa-check text-gold-500 ml-auto text-xs opacity-0"></i>
             </button>
-            <button onclick="setView('small')" class="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:bg-[#162a52] transition" id="viewSmall">
-                <i class="fas fa-th-large text-[#d4a843] w-5"></i>
-                <span class="text-white">Folder Kecil</span>
-                <i class="fas fa-check text-[#d4a843] ml-auto text-xs hidden check-small"></i>
+            <button onclick="setView('small')" data-view-option="small" class="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:bg-navy-700 transition">
+                <i class="fas fa-table-cells text-gold-500 w-5"></i><span class="text-white">Ikon Kecil</span>
+                <i class="fas fa-check text-gold-500 ml-auto text-xs opacity-0"></i>
             </button>
-            <button onclick="setView('large')" class="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:bg-[#162a52] transition" id="viewLarge">
-                <i class="fas fa-th text-[#d4a843] w-5"></i>
-                <span class="text-white">Folder Besar</span>
-                <i class="fas fa-check text-[#d4a843] ml-auto text-xs hidden check-large"></i>
+            <button onclick="setView('large')" data-view-option="large" class="w-full px-4 py-3 text-left text-sm flex items-center gap-3 hover:bg-navy-700 transition">
+                <i class="fas fa-table-cells-large text-gold-500 w-5"></i><span class="text-white">Ikon Besar</span>
+                <i class="fas fa-check text-gold-500 ml-auto text-xs opacity-0"></i>
             </button>
         </div>
     </div>
 </div>
 
-<!-- Drop Zone (external file upload) -->
+<!-- Area lepas file dari komputer -->
 <div id="dropZone" class="file-drop-zone rounded-2xl p-8 mb-6 text-center hidden">
-    <i class="fas fa-cloud-upload-alt text-5xl mb-4 text-indigo-400"></i>
-    <p class="text-lg font-medium text-slate-400">Drop files here to upload</p>
+    <i class="fas fa-cloud-arrow-up text-4xl mb-3 text-gold-500"></i>
+    <p class="text-base font-medium text-slate-300">Lepaskan file di sini untuk mengunggah</p>
 </div>
 
-<!-- Move Zone (current folder drop target) -->
-<div id="moveZone" class="hidden fixed inset-0 z-40 bg-indigo-500/10 border-4 border-dashed border-indigo-400 rounded-2xl flex items-center justify-center pointer-events-none">
-    <div class="bg-white rounded-2xl shadow-xl px-8 py-6 text-center">
-        <i class="fas fa-folder-open text-4xl text-indigo-500 mb-3"></i>
-        <p class="text-lg font-semibold text-indigo-700">Drop here to move</p>
+<!-- Overlay pindah ke folder saat ini -->
+<div id="moveZone" class="hidden fixed inset-4 z-40 rounded-2xl border-4 border-dashed border-gold-500/70 bg-navy-900/40 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+    <div class="panel px-8 py-6 text-center">
+        <i class="fas fa-folder-open text-4xl text-gold-500 mb-3"></i>
+        <p class="text-base font-semibold text-white">Lepaskan untuk memindahkan ke sini</p>
     </div>
 </div>
 
-<!-- Folders -->
+<!-- Folder -->
 @if($folders->count() > 0)
-<div class="mb-8">
-    <h3 class="text-sm font-semibold text-[#d4a843] uppercase tracking-wider mb-4"><i class="fas fa-folder mr-2"></i>Folders ({{ $folders->count() }})</h3>
-    
-    <!-- Small Grid (default) -->
-    <div id="foldersSmall" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
+<section class="mb-8">
+    <h2 class="text-xs font-semibold text-gold-500 uppercase tracking-wider mb-3">
+        <i class="fas fa-folder mr-2"></i>Folder <span class="text-slate-500 font-normal">({{ $folders->count() }})</span>
+    </h2>
+
+    <div data-group="folders" data-variant="small" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
         @foreach($folders as $folder)
-        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-3 hover-lift cursor-pointer group relative drag-item"
-             draggable="true"
-             data-type="folder" data-id="{{ $folder->id }}" data-name="{{ $folder->name }}" data-path="{{ $folder->path }}" data-hidden="{{ $folder->is_hidden ? '1' : '0' }}" data-locked="{{ $folder->lock_password ? '1' : '0' }}"
-             onclick="window.location='{{ route('drive.index', ['folder' => $folder->path]) }}'"
-             oncontextmenu="showContextMenu(event, 'folder', {{ $folder->id }}, '{{ $folder->name }}', {{ $folder->is_hidden ? 'true' : 'false' }}, {{ ($folder->lock_password || $folder->hasLockedFiles()) ? 'true' : 'false' }})">
-            <div class="flex flex-col items-center text-center">
-                <div class="w-11 h-11 rounded-xl bg-amber-500/20 flex items-center justify-center mb-2">
-                    <i class="fas fa-folder text-amber-400 text-xl"></i>
-                </div>
-                <p class="font-medium text-white text-xs truncate w-full">{{ $folder->name }}</p>
-                @if($folder->lock_password)
-                <i class="fas fa-lock text-red-400 text-[10px] mt-1"></i>
-                @endif
-            </div>
-            @if($folder->is_hidden)
-            <div class="absolute top-1.5 left-1.5"><span class="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] rounded-full"><i class="fas fa-eye-slash"></i></span></div>
-            @endif
-        </div>
+            @include('drive.partials.folder-item', ['folder' => $folder, 'variant' => 'small'])
         @endforeach
     </div>
-    
-    <!-- Large Grid -->
-    <div id="foldersLarge" class="hidden grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+
+    <div data-group="folders" data-variant="large" class="hidden grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
         @foreach($folders as $folder)
-        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-5 hover-lift cursor-pointer group relative drag-item"
-             draggable="true"
-             data-type="folder" data-id="{{ $folder->id }}" data-name="{{ $folder->name }}" data-path="{{ $folder->path }}" data-hidden="{{ $folder->is_hidden ? '1' : '0' }}" data-locked="{{ $folder->lock_password ? '1' : '0' }}"
-             onclick="window.location='{{ route('drive.index', ['folder' => $folder->path]) }}'"
-             oncontextmenu="showContextMenu(event, 'folder', {{ $folder->id }}, '{{ $folder->name }}', {{ $folder->is_hidden ? 'true' : 'false' }}, {{ ($folder->lock_password || $folder->hasLockedFiles()) ? 'true' : 'false' }})">
-            <div class="flex flex-col items-center text-center">
-                <div class="w-20 h-20 rounded-2xl bg-amber-500/20 flex items-center justify-center mb-3">
-                    <i class="fas fa-folder text-amber-400 text-4xl"></i>
-                </div>
-                <p class="font-medium text-white text-sm truncate w-full">{{ $folder->name }}</p>
-                <p class="text-xs text-slate-400 mt-0.5">{{ $folder->created_at->format('d M Y') }}</p>
-                @if($folder->lock_password)
-                <i class="fas fa-lock text-red-400 text-xs mt-1"></i>
-                @endif
-            </div>
-            @if($folder->is_hidden)
-            <div class="absolute top-2 left-2"><span class="px-2 py-1 bg-amber-500/20 text-amber-400 text-xs rounded-full"><i class="fas fa-eye-slash mr-1"></i>Hidden</span></div>
-            @endif
-        </div>
+            @include('drive.partials.folder-item', ['folder' => $folder, 'variant' => 'large'])
         @endforeach
     </div>
-    
-    <!-- List View -->
-    <div id="foldersList" class="hidden space-y-2">
+
+    <div data-group="folders" data-variant="list" class="hidden space-y-2">
         @foreach($folders as $folder)
-        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] px-4 py-3 hover-lift cursor-pointer group relative drag-item flex items-center gap-4"
-             draggable="true"
-             data-type="folder" data-id="{{ $folder->id }}" data-name="{{ $folder->name }}" data-path="{{ $folder->path }}" data-hidden="{{ $folder->is_hidden ? '1' : '0' }}" data-locked="{{ $folder->lock_password ? '1' : '0' }}"
-             onclick="window.location='{{ route('drive.index', ['folder' => $folder->path]) }}'"
-             oncontextmenu="showContextMenu(event, 'folder', {{ $folder->id }}, '{{ $folder->name }}', {{ $folder->is_hidden ? 'true' : 'false' }}, {{ ($folder->lock_password || $folder->hasLockedFiles()) ? 'true' : 'false' }})">
-            <div class="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                <i class="fas fa-folder text-amber-400 text-lg"></i>
-            </div>
-            <div class="flex-1 min-w-0">
-                <p class="font-medium text-white text-sm truncate">{{ $folder->name }}</p>
-            </div>
-            <span class="text-xs text-slate-400 hidden md:block">{{ $folder->created_at->format('d M Y') }}</span>
-            @if($folder->lock_password)
-            <i class="fas fa-lock text-red-400 text-sm"></i>
-            @endif
-            @if($folder->is_hidden)
-            <span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded-full"><i class="fas fa-eye-slash mr-1"></i>Hidden</span>
-            @endif
-        </div>
+            @include('drive.partials.folder-item', ['folder' => $folder, 'variant' => 'list'])
         @endforeach
     </div>
-</div>
-@endif<!-- Files -->
-@if($files->count() > 0)
-<div>
-    <h3 class="text-sm font-semibold text-[#d4a843] uppercase tracking-wider mb-4"><i class="fas fa-file mr-2"></i>Files ({{ $files->count() }})</h3>
-    
-    <!-- Small Grid View -->
-    <div id="filesSmall" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
-        @foreach($files as $file)
-        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-3 hover-lift cursor-pointer drag-item"
-             draggable="true"
-             data-type="file" data-id="{{ $file->id }}" data-name="{{ $file->original_name }}" data-folder="{{ $file->folder }}" data-hidden="{{ $file->is_hidden ? '1' : '0' }}" data-locked="{{ $file->lock_password ? '1' : '0' }}" data-encrypted="{{ $file->is_encrypted ? '1' : '0' }}" data-shared="{{ $file->isShared() ? '1' : '0' }}" data-mime="{{ $file->mime_type }}"
-             ondblclick="openFilePreview({{ $file->id }}, '{{ $file->original_name }}', '{{ $file->mime_type }}', {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }})"
-             oncontextmenu="showContextMenu(event, 'file', {{ $file->id }}, '{{ $file->original_name }}', {{ $file->is_hidden ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }}, {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->isShared() ? 'true' : 'false' }})">
-            <div class="flex flex-col items-center text-center">
-                <div class="w-11 h-11 rounded-xl bg-[#162a52] flex items-center justify-center mb-2">
-                    <i class="fas {{ $file->getIconClass() }} text-xl"></i>
-                </div>
-                <p class="font-medium text-white text-xs truncate w-full">{{ $file->original_name }}</p>
-                <p class="text-[10px] text-slate-400 mt-0.5">{{ $file->formatSize() }}</p>
-            </div>
-        </div>
-        @endforeach
-    </div>
-    
-    <!-- Large Grid View -->
-    <div id="filesLarge" class="hidden grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-        @foreach($files as $file)
-        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-5 hover-lift cursor-pointer drag-item"
-             draggable="true"
-             data-type="file" data-id="{{ $file->id }}" data-name="{{ $file->original_name }}" data-folder="{{ $file->folder }}" data-hidden="{{ $file->is_hidden ? '1' : '0' }}" data-locked="{{ $file->lock_password ? '1' : '0' }}" data-encrypted="{{ $file->is_encrypted ? '1' : '0' }}" data-shared="{{ $file->isShared() ? '1' : '0' }}" data-mime="{{ $file->mime_type }}"
-             ondblclick="openFilePreview({{ $file->id }}, '{{ $file->original_name }}', '{{ $file->mime_type }}', {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }})"
-             oncontextmenu="showContextMenu(event, 'file', {{ $file->id }}, '{{ $file->original_name }}', {{ $file->is_hidden ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }}, {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->isShared() ? 'true' : 'false' }})">
-            <div class="flex flex-col items-center text-center">
-                <div class="w-20 h-20 rounded-2xl bg-[#162a52] flex items-center justify-center mb-3">
-                    <i class="fas {{ $file->getIconClass() }} text-4xl"></i>
-                </div>
-                <p class="font-medium text-white text-sm truncate w-full">{{ $file->original_name }}</p>
-                <p class="text-xs text-slate-400 mt-0.5">{{ $file->formatSize() }}</p>
-                <div class="flex items-center gap-1 mt-1">
-                    @if($file->isShared())<span class="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] rounded-full"><i class="fas fa-share-alt"></i></span>@endif
-                    @if($file->lock_password)<span class="px-1.5 py-0.5 bg-red-500/20 text-red-400 text-[10px] rounded-full"><i class="fas fa-lock"></i></span>@endif
-                </div>
-            </div>
-        </div>
-        @endforeach
-    </div>
-    
-    <!-- List View -->
-    <div id="filesList" class="hidden space-y-2">
-        @foreach($files as $file)
-        <div class="bg-[#0f1f3d] rounded-xl border border-[#1d3566] px-4 py-3 hover-lift cursor-pointer drag-item flex items-center gap-4"
-             draggable="true"
-             data-type="file" data-id="{{ $file->id }}" data-name="{{ $file->original_name }}" data-folder="{{ $file->folder }}" data-hidden="{{ $file->is_hidden ? '1' : '0' }}" data-locked="{{ $file->lock_password ? '1' : '0' }}" data-encrypted="{{ $file->is_encrypted ? '1' : '0' }}" data-shared="{{ $file->isShared() ? '1' : '0' }}" data-mime="{{ $file->mime_type }}"
-             ondblclick="openFilePreview({{ $file->id }}, '{{ $file->original_name }}', '{{ $file->mime_type }}', {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }})"
-             oncontextmenu="showContextMenu(event, 'file', {{ $file->id }}, '{{ $file->original_name }}', {{ $file->is_hidden ? 'true' : 'false' }}, {{ $file->lock_password ? 'true' : 'false' }}, {{ $file->is_encrypted ? 'true' : 'false' }}, {{ $file->isShared() ? 'true' : 'false' }})">
-            <div class="w-10 h-10 rounded-xl bg-[#162a52] flex items-center justify-center flex-shrink-0">
-                <i class="fas {{ $file->getIconClass() }} text-lg"></i>
-            </div>
-            <div class="flex-1 min-w-0">
-                <p class="font-medium text-white text-sm truncate">{{ $file->original_name }}</p>
-            </div>
-            <span class="text-xs text-slate-400 hidden md:block">{{ $file->formatSize() }}</span>
-            <span class="text-xs text-slate-400 hidden lg:block">{{ $file->mime_type }}</span>
-            <span class="text-xs text-slate-400 hidden md:block">{{ $file->updated_at->format('d M Y') }}</span>
-            @if($file->isShared())<span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full hidden md:inline-flex"><i class="fas fa-share-alt mr-1"></i>Shared</span>@endif
-            @if($file->lock_password)<span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full hidden md:inline-flex"><i class="fas fa-lock mr-1"></i>Locked</span>@endif
-        </div>
-        @endforeach
-    </div>
-</div>
+</section>
 @endif
 
-<!-- Empty State -->
+<!-- File -->
+@if($files->count() > 0)
+<section>
+    <h2 class="text-xs font-semibold text-gold-500 uppercase tracking-wider mb-3">
+        <i class="fas fa-file mr-2"></i>File <span class="text-slate-500 font-normal">({{ $files->count() }})</span>
+    </h2>
+
+    <div data-group="files" data-variant="small" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
+        @foreach($files as $file)
+            @include('drive.partials.file-item', ['file' => $file, 'variant' => 'small'])
+        @endforeach
+    </div>
+
+    <div data-group="files" data-variant="large" class="hidden grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+        @foreach($files as $file)
+            @include('drive.partials.file-item', ['file' => $file, 'variant' => 'large'])
+        @endforeach
+    </div>
+
+    <div data-group="files" data-variant="list" class="hidden space-y-2">
+        @foreach($files as $file)
+            @include('drive.partials.file-item', ['file' => $file, 'variant' => 'list'])
+        @endforeach
+    </div>
+</section>
+@endif
+
+<!-- Kondisi kosong -->
 @if($files->count() === 0 && $folders->count() === 0)
 <div class="text-center py-16">
-    <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-[#d4a843]/10 flex items-center justify-center">
-        <i class="fas fa-cloud-upload-alt text-4xl text-[#d4a843]"></i>
+    <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-gold-500/10 flex items-center justify-center">
+        <i class="fas {{ $search ? 'fa-magnifying-glass' : 'fa-cloud-arrow-up' }} text-4xl text-gold-500"></i>
     </div>
-    <h3 class="text-xl font-semibold text-white mb-2">{{ $search ? 'No results found' : 'No files yet' }}</h3>
-    <p class="text-slate-400 mb-6">{{ $search ? 'Try a different search term' : 'Upload your first file to get started' }}</p>
+    <h3 class="text-xl font-semibold text-white mb-2">{{ $search ? 'Tidak ada hasil' : 'Belum ada file' }}</h3>
+    <p class="text-slate-400 mb-6 text-sm">{{ $search ? 'Coba kata kunci lain.' : 'Unggah file pertama Anda untuk memulai.' }}</p>
     @if(!$search)
-    <button onclick="openUploadModal()" class="btn-primary px-6 py-3 rounded-xl text-white font-medium"><i class="fas fa-cloud-upload-alt mr-2"></i> Upload File</button>
+    <button onclick="openUploadModal()" class="btn-primary px-6 py-3 rounded-xl"><i class="fas fa-cloud-arrow-up mr-2"></i>Unggah File</button>
     @endif
 </div>
 @endif
+
+<p class="mt-10 text-center text-[11px] text-slate-600">
+    Klik kanan pada item untuk menu aksi &middot; dobel klik untuk membuka &middot; seret untuk memindahkan
+</p>
 @endsection
 
 @section('modals')
-<!-- Context Menu -->
-<div id="contextMenu" class="hidden fixed z-50 bg-[#0f1f3d] rounded-xl shadow-2xl border border-[#1d3566] py-2 w-56">
-    <button id="ctxDownload" onclick="ctxAction('download')" class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-[#162a52] flex items-center gap-3"><i class="fas fa-download text-[#d4a843] w-5"></i>Download</button>
-    <button id="ctxShare" onclick="ctxAction('share')" class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-[#162a52] flex items-center gap-3"><i class="fas fa-share-alt text-green-400 w-5"></i>Share</button>
-    <button id="ctxUnshare" onclick="ctxAction('unshare')" class="hidden w-full px-4 py-2.5 text-left text-sm text-orange-400 hover:bg-[#162a52] flex items-center gap-3"><i class="fas fa-ban w-5"></i>Unshare</button>
-    <hr class="my-1 border-[#1d3566]">
-    <button id="ctxHide" onclick="ctxAction('hide')" class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-[#162a52] flex items-center gap-3"><i class="fas fa-eye-slash text-yellow-400 w-5"></i><span id="ctxHideText">Hide</span></button>
-    <button id="ctxLock" onclick="ctxAction('lock')" class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-[#162a52] flex items-center gap-3"><i class="fas fa-lock text-red-400 w-5"></i><span id="ctxLockText">Lock</span></button>
-    <hr class="my-1 border-[#1d3566]">
-    <button onclick="ctxAction('delete')" class="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-900/30 flex items-center gap-3"><i class="fas fa-trash w-5"></i>Delete</button>
+<!-- Menu klik kanan -->
+<div id="contextMenu" class="hidden fixed z-50 panel py-2 w-56">
+    <p id="ctxTitle" class="px-4 pb-2 mb-1 text-xs text-slate-500 truncate border-b border-navy-600"></p>
+    <button id="ctxOpen" onclick="ctxAction('open')" class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-navy-700 flex items-center gap-3"><i class="fas fa-up-right-from-square text-gold-500 w-5"></i>Buka</button>
+    <button id="ctxDownload" onclick="ctxAction('download')" class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-navy-700 flex items-center gap-3"><i class="fas fa-download text-gold-500 w-5"></i>Unduh</button>
+    <button id="ctxShare" onclick="ctxAction('share')" class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-navy-700 flex items-center gap-3"><i class="fas fa-share-alt text-green-400 w-5"></i>Bagikan</button>
+    <button id="ctxUnshare" onclick="ctxAction('unshare')" class="hidden w-full px-4 py-2.5 text-left text-sm text-orange-400 hover:bg-navy-700 flex items-center gap-3"><i class="fas fa-ban w-5"></i>Batalkan Berbagi</button>
+    <hr class="my-1 border-navy-600">
+    <button id="ctxHide" onclick="ctxAction('hide')" class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-navy-700 flex items-center gap-3"><i class="fas fa-eye-slash text-amber-400 w-5"></i><span id="ctxHideText">Sembunyikan</span></button>
+    <button id="ctxLock" onclick="ctxAction('lock')" class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-navy-700 flex items-center gap-3"><i class="fas fa-lock text-red-400 w-5"></i><span id="ctxLockText">Kunci</span></button>
+    <hr class="my-1 border-navy-600">
+    <button id="ctxDelete" onclick="ctxAction('delete')" class="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-900/30 flex items-center gap-3"><i class="fas fa-trash w-5"></i>Hapus</button>
 </div>
 
-<!-- Upload Modal -->
-<div id="uploadModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay">
-    <div class="bg-[#0f1f3d] rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-lg mx-0 md:mx-4 border border-[#1d3566] max-h-[90vh] overflow-y-auto">
-        <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-white">Upload File</h3>
-            <button onclick="closeUploadModal()" class="w-8 h-8 rounded-lg hover:bg-[#162a52] flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
+<!-- Modal unggah -->
+<div id="uploadModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay p-0 md:p-4">
+    <div class="panel !rounded-b-none md:!rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
+        <div class="p-5 md:p-6 border-b border-navy-600 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white">Unggah File</h3>
+            <button onclick="closeUploadModal()" aria-label="Tutup" class="w-9 h-9 rounded-lg hover:bg-navy-700 flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
         </div>
-        <form id="uploadForm" enctype="multipart/form-data" class="p-6">
+        <form id="uploadForm" enctype="multipart/form-data" class="p-5 md:p-6">
             @csrf
             <input type="hidden" name="folder" value="{{ $currentFolder }}">
-            <div class="mb-6">
-                <div class="border-2 border-dashed border-[#1d3566] rounded-xl p-8 text-center hover:border-[#d4a843] transition cursor-pointer" onclick="document.getElementById('fileInput').click()">
-                    <i class="fas fa-cloud-upload-alt text-4xl text-[#d4a843] mb-3"></i>
-                    <p class="text-gray-300 mb-2">Click to select file</p>
-                    <p class="text-xs text-slate-400">Max 100MB</p>
-                    <input type="file" id="fileInput" name="file" class="hidden" onchange="handleFileSelect(this)">
+
+            <div class="mb-5">
+                <button type="button" class="w-full border-2 border-dashed border-navy-600 rounded-xl p-8 text-center hover:border-gold-500 transition" onclick="document.getElementById('fileInput').click()">
+                    <i class="fas fa-cloud-arrow-up text-4xl text-gold-500 mb-3"></i>
+                    <p class="text-slate-300 mb-1 text-sm">Klik untuk memilih file</p>
+                    <p class="text-xs text-slate-500">Maksimal 100 MB per file</p>
+                </button>
+                <input type="file" id="fileInput" name="file" class="hidden" onchange="handleFileSelect(this)">
+
+                <div id="selectedFile" class="hidden mt-4 p-3 bg-navy-700 rounded-xl flex items-center gap-3">
+                    <i class="fas fa-file text-gold-500"></i>
+                    <span id="fileName" class="text-sm text-slate-200 flex-1 truncate"></span>
+                    <span id="fileSize" class="text-xs text-slate-500"></span>
+                    <button type="button" onclick="clearFileSelection()" aria-label="Batal pilih" class="text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
                 </div>
-                <div id="selectedFile" class="hidden mt-4 p-4 bg-[#162a52] rounded-xl flex items-center gap-3">
-                    <i class="fas fa-file text-[#d4a843]"></i>
-                    <span id="fileName" class="text-sm text-gray-300 flex-1"></span>
-                    <button type="button" onclick="clearFileSelection()" class="text-slate-400 hover:text-gray-300"><i class="fas fa-times"></i></button>
+            </div>
+
+            <label class="flex items-start gap-3 cursor-pointer mb-4">
+                <input type="checkbox" name="is_locked" value="1" id="lockToggle" onchange="togglePasswordField()" class="w-5 h-5 mt-0.5 rounded accent-[#d4a843]">
+                <span>
+                    <span class="text-sm font-medium text-white"><i class="fas fa-lock text-red-400 mr-1"></i>Kunci file</span>
+                    <span class="block text-xs text-slate-400 mt-0.5">File dienkripsi dan tidak bisa dihapus sebelum dibuka kuncinya.</span>
+                </span>
+            </label>
+
+            <div id="passwordField" class="hidden mb-5">
+                <label class="label" for="uploadLockPassword">Password kunci</label>
+                <input type="password" id="uploadLockPassword" name="lock_password" class="field" placeholder="Minimal 4 karakter">
+            </div>
+
+            <div id="uploadProgressWrap" class="hidden mb-5">
+                <div class="w-full bg-navy-700 rounded-full h-2 overflow-hidden">
+                    <div id="uploadProgress" class="progress-bar h-2 rounded-full transition-all duration-200" style="width: 0%"></div>
                 </div>
+                <p id="uploadProgressText" class="text-xs text-slate-400 mt-1.5 text-center">0%</p>
             </div>
-            <div class="mb-6">
-                <label class="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" name="is_locked" value="1" id="lockToggle" onchange="togglePasswordField()" class="w-5 h-5 rounded accent-[#d4a843]">
-                    <div><span class="text-sm font-medium text-white"><i class="fas fa-lock text-red-400 mr-1"></i>Lock File</span><p class="text-xs text-slate-400">Encrypt & lock — file cannot be deleted until unlocked</p></div>
-                </label>
-            </div>
-            <div id="passwordField" class="hidden mb-6">
-                <input type="password" name="lock_password" class="w-full px-4 py-3 border border-[#1d3566] bg-[#162a52] rounded-xl focus:ring-2 focus:ring-[#d4a843] outline-none text-white" placeholder="Lock password">
-            </div>
+
             <div class="flex gap-3">
-                <button type="button" onclick="closeUploadModal()" class="flex-1 px-4 py-3 border border-[#1d3566] rounded-xl text-slate-400 hover:bg-[#162a52]">Cancel</button>
-                <button type="submit" id="uploadBtn" class="flex-1 btn-primary px-4 py-3 rounded-xl font-medium disabled:opacity-50" disabled><i class="fas fa-upload mr-2"></i>Upload</button>
+                <button type="button" onclick="closeUploadModal()" class="flex-1 btn-ghost px-4 py-3 rounded-xl">Batal</button>
+                <button type="submit" id="uploadBtn" class="flex-1 btn-primary px-4 py-3 rounded-xl" disabled><i class="fas fa-upload mr-2"></i>Unggah</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Folder Modal -->
-<div id="folderModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay">
-    <div class="bg-[#0f1f3d] rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-md mx-0 md:mx-4 border border-[#1d3566]">
-        <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-white">Create Folder</h3>
-            <button onclick="closeFolderModal()" class="w-8 h-8 rounded-lg hover:bg-[#162a52] flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
+<!-- Modal folder baru -->
+<div id="folderModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay p-0 md:p-4">
+    <div class="panel !rounded-b-none md:!rounded-2xl w-full max-w-md">
+        <div class="p-5 md:p-6 border-b border-navy-600 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white">Folder Baru</h3>
+            <button onclick="closeFolderModal()" aria-label="Tutup" class="w-9 h-9 rounded-lg hover:bg-navy-700 flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
         </div>
-        <form id="folderForm" class="p-6">
+        <form id="folderForm" class="p-5 md:p-6">
             @csrf
             <input type="hidden" name="parent_path" value="{{ $currentFolder }}">
-            <input type="text" name="name" required class="w-full px-4 py-3 border border-[#1d3566] rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none mb-6" placeholder="Folder name">
+            <label class="label" for="folderName">Nama folder</label>
+            <input type="text" id="folderName" name="name" required maxlength="255" class="field mb-5" placeholder="Contoh: Dokumen Proyek">
             <div class="flex gap-3">
-                <button type="button" onclick="closeFolderModal()" class="flex-1 px-4 py-3 border border-[#1d3566] rounded-xl text-white hover:bg-[#162a52]">Cancel</button>
-                <button type="submit" class="flex-1 btn-primary px-4 py-3 rounded-xl text-white font-medium"><i class="fas fa-folder-plus mr-2"></i>Create</button>
+                <button type="button" onclick="closeFolderModal()" class="flex-1 btn-ghost px-4 py-3 rounded-xl">Batal</button>
+                <button type="submit" class="flex-1 btn-primary px-4 py-3 rounded-xl"><i class="fas fa-folder-plus mr-2"></i>Buat</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Lock/Unlock Modal -->
-<div id="lockModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay">
-    <div class="bg-[#0f1f3d] rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-md mx-0 md:mx-4 border border-[#1d3566]">
-        <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-white"><i class="fas fa-lock text-red-400 mr-2"></i><span id="lockModalTitle">Lock File</span></h3>
-            <button onclick="closeLockModal()" class="w-8 h-8 rounded-lg hover:bg-[#162a52] flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
+<!-- Modal kunci / buka kunci -->
+<div id="lockModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay p-0 md:p-4">
+    <div class="panel !rounded-b-none md:!rounded-2xl w-full max-w-md">
+        <div class="p-5 md:p-6 border-b border-navy-600 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white"><i class="fas fa-lock text-red-400 mr-2"></i><span id="lockModalTitle">Kunci File</span></h3>
+            <button onclick="closeLockModal()" aria-label="Tutup" class="w-9 h-9 rounded-lg hover:bg-navy-700 flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
         </div>
-        <form id="lockForm" class="p-6">
+        <form id="lockForm" class="p-5 md:p-6">
             @csrf
-            <input type="hidden" name="type" id="lockType">
-            <input type="hidden" name="id" id="lockId">
-            <p class="text-sm text-slate-300 mb-4">File: <span id="lockFileName" class="font-medium"></span></p>
-            <input type="password" name="password" required class="w-full px-4 py-3 border border-[#1d3566] rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none mb-6" placeholder="Enter lock password (different from login)">
+            <p class="text-sm text-slate-400 mb-4">Item: <span id="lockFileName" class="font-medium text-white"></span></p>
+            <label class="label" for="lockPassword">Password</label>
+            <input type="password" id="lockPassword" name="password" required class="field mb-5" placeholder="Password kunci (berbeda dari password login)">
             <div class="flex gap-3">
-                <button type="button" onclick="closeLockModal()" class="flex-1 px-4 py-3 border border-[#1d3566] rounded-xl text-white hover:bg-[#162a52]">Cancel</button>
-                <button type="submit" class="flex-1 btn-primary px-4 py-3 rounded-xl text-white font-medium"><i class="fas fa-lock mr-2"></i><span id="lockBtnText">Lock</span></button>
+                <button type="button" onclick="closeLockModal()" class="flex-1 btn-ghost px-4 py-3 rounded-xl">Batal</button>
+                <button type="submit" class="flex-1 btn-primary px-4 py-3 rounded-xl"><i class="fas fa-lock mr-2"></i><span id="lockBtnText">Kunci</span></button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Decrypt Modal -->
-<div id="decryptModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay">
-    <div class="bg-[#0f1f3d] rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-md mx-0 md:mx-4 border border-[#1d3566]">
-        <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-white"><i class="fas fa-lock text-green-400 mr-2"></i>Download Encrypted File</h3>
-            <button onclick="closeDecryptModal()" class="w-8 h-8 rounded-lg hover:bg-[#162a52] flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
+<!-- Modal unduh file terenkripsi -->
+<div id="decryptModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay p-0 md:p-4">
+    <div class="panel !rounded-b-none md:!rounded-2xl w-full max-w-md">
+        <div class="p-5 md:p-6 border-b border-navy-600 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white"><i class="fas fa-shield-halved text-green-400 mr-2"></i>Unduh File Terenkripsi</h3>
+            <button onclick="closeDecryptModal()" aria-label="Tutup" class="w-9 h-9 rounded-lg hover:bg-navy-700 flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
         </div>
-        <form id="decryptForm" class="p-6">
+        <form id="decryptForm" class="p-5 md:p-6">
             @csrf
-            <p class="text-sm text-slate-300 mb-4">File: <span id="decryptFileName" class="font-medium"></span></p>
-            <input type="password" name="password" required class="w-full px-4 py-3 border border-[#1d3566] rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none mb-6" placeholder="Enter password to decrypt">
+            <p class="text-sm text-slate-400 mb-4">File: <span id="decryptFileName" class="font-medium text-white"></span></p>
+            <label class="label" for="decryptPassword">Password</label>
+            <input type="password" id="decryptPassword" name="password" required class="field mb-5" placeholder="Password untuk dekripsi">
             <div class="flex gap-3">
-                <button type="button" onclick="closeDecryptModal()" class="flex-1 px-4 py-3 border border-[#1d3566] rounded-xl text-white hover:bg-[#162a52]">Cancel</button>
-                <button type="submit" class="flex-1 btn-primary px-4 py-3 rounded-xl text-white font-medium"><i class="fas fa-download mr-2"></i>Download</button>
+                <button type="button" onclick="closeDecryptModal()" class="flex-1 btn-ghost px-4 py-3 rounded-xl">Batal</button>
+                <button type="submit" class="flex-1 btn-primary px-4 py-3 rounded-xl"><i class="fas fa-download mr-2"></i>Unduh</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Share Modal -->
-<div id="shareModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay">
-    <div class="bg-[#0f1f3d] rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-md mx-0 md:mx-4 border border-[#1d3566]">
-        <div class="p-6 border-b border-[#1d3566] flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-white"><i class="fas fa-share-alt text-[#d4a843] mr-2"></i>Share File</h3>
-            <button onclick="closeShareModal()" class="w-8 h-8 rounded-lg hover:bg-[#162a52] flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
+<!-- Modal berbagi -->
+<div id="shareModal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center modal-overlay p-0 md:p-4">
+    <div class="panel !rounded-b-none md:!rounded-2xl w-full max-w-md max-h-[92vh] overflow-y-auto">
+        <div class="p-5 md:p-6 border-b border-navy-600 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white"><i class="fas fa-share-alt text-gold-500 mr-2"></i>Bagikan File</h3>
+            <button onclick="closeShareModal()" aria-label="Tutup" class="w-9 h-9 rounded-lg hover:bg-navy-700 flex items-center justify-center"><i class="fas fa-times text-slate-400"></i></button>
         </div>
-        <form id="shareForm" class="p-6">
+        <form id="shareForm" class="p-5 md:p-6">
             @csrf
-            <p class="text-sm text-slate-300 mb-4">File: <span id="shareFileName" class="font-medium"></span></p>
+            <p class="text-sm text-slate-400 mb-4">File: <span id="shareFileName" class="font-medium text-white"></span></p>
+
             <label class="flex items-center gap-3 cursor-pointer mb-4">
-                <input type="checkbox" name="has_password" id="sharePasswordToggle" onchange="toggleSharePasswordField()" class="w-5 h-5 rounded text-indigo-600">
-                <div><span class="text-sm font-medium text-white">Password Protection</span></div>
+                <input type="checkbox" id="sharePasswordToggle" onchange="toggleSharePasswordField()" class="w-5 h-5 rounded accent-[#d4a843]">
+                <span class="text-sm font-medium text-white">Lindungi dengan password</span>
             </label>
+
             <div id="sharePasswordField" class="hidden mb-4">
-                <input type="password" name="password" class="w-full px-4 py-3 border border-[#1d3566] rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Share password">
+                <label class="label" for="sharePassword">Password link</label>
+                <input type="password" id="sharePassword" name="password" class="field" placeholder="Password untuk penerima">
             </div>
+
             <div class="mb-4">
-                <label class="block text-sm font-medium text-white mb-1">Expiry (Optional)</label>
-                <input type="datetime-local" name="expires_at" class="w-full px-4 py-3 border border-[#1d3566] rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                <label class="label" for="shareExpires">Berlaku sampai <span class="text-slate-500 font-normal">(opsional)</span></label>
+                <input type="datetime-local" id="shareExpires" name="expires_at" class="field">
             </div>
-            <div id="shareResult" class="hidden mb-4 p-4 bg-green-50 border border-green-200 rounded-xl">
-                <p class="text-sm text-green-700 mb-2"><i class="fas fa-check-circle mr-2"></i>Link created!</p>
+
+            <div class="mb-5">
+                <label class="label" for="shareLimit">Batas unduhan <span class="text-slate-500 font-normal">(opsional)</span></label>
+                <input type="number" id="shareLimit" name="download_limit" min="1" class="field" placeholder="Contoh: 5">
+            </div>
+
+            <div id="shareResult" class="hidden mb-5 p-4 bg-green-500/10 border border-green-500/40 rounded-xl">
+                <p class="text-sm text-green-300 mb-2"><i class="fas fa-circle-check mr-2"></i>Link berhasil dibuat</p>
                 <div class="flex items-center gap-2">
-                    <input type="text" id="shareUrl" readonly class="flex-1 px-3 py-2 bg-white border border-green-300 rounded-lg text-sm">
-                    <button type="button" onclick="copyShareUrl()" class="px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600"><i class="fas fa-copy"></i></button>
+                    <input type="text" id="shareUrl" readonly class="field !py-2 text-xs">
+                    <button type="button" onclick="copyShareUrl()" aria-label="Salin link" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm flex-shrink-0"><i class="fas fa-copy"></i></button>
                 </div>
             </div>
+
             <div class="flex gap-3">
-                <button type="button" onclick="closeShareModal()" class="flex-1 px-4 py-3 border border-[#1d3566] rounded-xl text-white hover:bg-[#162a52]">Close</button>
-                <button type="submit" class="flex-1 btn-primary px-4 py-3 rounded-xl text-white font-medium"><i class="fas fa-share-alt mr-2"></i>Create Link</button>
+                <button type="button" onclick="closeShareModal()" class="flex-1 btn-ghost px-4 py-3 rounded-xl">Tutup</button>
+                <button type="submit" class="flex-1 btn-primary px-4 py-3 rounded-xl"><i class="fas fa-link mr-2"></i>Buat Link</button>
             </div>
         </form>
     </div>
 </div>
-@endsection
 
-@push('scripts')
-<script>
-// ==========================================
-// View Toggle (List / Small Grid / Large Grid)
-// =========================================
-let currentView = localStorage.getItem('driveView') || 'small';
-
-document.addEventListener('DOMContentLoaded', function() {
-    applyView(currentView);
-});
-
-function toggleViewDropdown() {
-    document.getElementById('viewDropdown').classList.toggle('hidden');
-}
-
-function setView(view) {
-    currentView = view;
-    localStorage.setItem('driveView', view);
-    applyView(view);
-    document.getElementById('viewDropdown').classList.add('hidden');
-}
-
-function applyView(view) {
-    // Hide all
-    ['foldersSmall', 'foldersLarge', 'foldersList', 'filesSmall', 'filesLarge', 'filesList'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
-    });
-    
-    // Uncheck all
-    document.querySelectorAll('.check-list, .check-small, .check-large').forEach(el => el.classList.add('hidden'));
-    
-    if (view === 'list') {
-        document.getElementById('foldersList')?.classList.remove('hidden');
-        document.getElementById('filesList')?.classList.remove('hidden');
-        document.querySelector('.check-list')?.classList.remove('hidden');
-    } else if (view === 'large') {
-        document.getElementById('foldersLarge')?.classList.remove('hidden');
-        document.getElementById('filesLarge')?.classList.remove('hidden');
-        document.querySelector('.check-large')?.classList.remove('hidden');
-    } else {
-        // small (default)
-        document.getElementById('foldersSmall')?.classList.remove('hidden');
-        document.getElementById('filesSmall')?.classList.remove('hidden');
-        document.querySelector('.check-small')?.classList.remove('hidden');
-    }
-    
-    // Re-init drag & drop for new elements
-    initDragDrop();
-}
-
-function initDragDrop() {
-    document.querySelectorAll('.drag-item').forEach(el => {
-        el.setAttribute('draggable', 'true');
-    });
-}
-
-// Close dropdown when clicking outside
-document.addEventListener('click', function(e) {
-    const dropdown = document.getElementById('viewDropdown');
-    const btn = dropdown?.previousElementSibling;
-    if (dropdown && !dropdown.contains(e.target) && !btn?.contains(e.target)) {
-        dropdown.classList.add('hidden');
-    }
-});
-
-let ctxType = null, ctxId = null, ctxName = '', ctxHidden = false, ctxLocked = false, ctxEncrypted = false;
-let currentDecryptFileId = null, currentShareFileId = null;
-
-// Context Menu
-let ctxShared = false;
-
-function showContextMenu(e, type, id, name, hidden, locked, encrypted, shared) {
-    e.preventDefault();
-    ctxType = type; ctxId = id; ctxName = name;
-    ctxHidden = hidden; ctxLocked = locked || false;
-    ctxEncrypted = encrypted || false;
-    ctxShared = shared || false;
-    
-    const menu = document.getElementById('contextMenu');
-    document.getElementById('ctxHideText').textContent = hidden ? 'Unhide' : 'Hide';
-    document.getElementById('ctxLockText').textContent = locked ? 'Unlock' : 'Lock';
-    document.getElementById('ctxDownload').style.display = (type === 'folder') ? 'none' : '';
-    document.getElementById('ctxShare').style.display = (type === 'folder' || locked || ctxShared) ? 'none' : '';
-    document.getElementById('ctxUnshare').classList.toggle('hidden', !ctxShared || type === 'folder');
-    
-    // Hide delete option for locked items
-    const deleteBtn = document.querySelector('#contextMenu button:last-child');
-    if (locked) {
-        deleteBtn.classList.add('hidden');
-    } else {
-        deleteBtn.classList.remove('hidden');
-    }
-    
-    menu.style.left = e.pageX + 'px';
-    menu.style.top = e.pageY + 'px';
-    menu.classList.remove('hidden');
-}
-
-document.addEventListener('click', () => document.getElementById('contextMenu').classList.add('hidden'));
-
-function ctxAction(action) {
-    document.getElementById('contextMenu').classList.add('hidden');
-    if (action === 'download') {
-        if (ctxEncrypted) { openDecryptModal(ctxId, ctxName); }
-        else { window.location = '/drive/file/' + ctxId + '/download'; }
-    } else if (action === 'share') { openShareModal(ctxId, ctxName);
-    } else if (action === 'unshare') { doUnshare(ctxId, ctxName);
-    } else if (action === 'hide') { doHide(ctxType, ctxId);
-    } else if (action === 'lock') { openLockModal(ctxType, ctxId, ctxName, ctxLocked);
-    } else if (action === 'delete') { doDelete(ctxType, ctxId); }
-}
-
-async function doHide(type, id) {
-    const url = type === 'folder' ? `/drive/folder/${id}/toggle-visibility` : `/drive/file/${id}/toggle-visibility`;
-    const res = await fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } });
-    const data = await res.json();
-    if (data.success) { showToast(data.message); setTimeout(() => location.reload(), 500); }
-}
-
-async function doDelete(type, id) {
-    if (!confirm('Delete this ' + type + '?')) return;
-    const url = type === 'folder' ? `/drive/folder/${id}` : `/drive/file/${id}`;
-    const res = await fetch(url, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' } });
-    const data = await res.json();
-    if (data.success) { showToast(data.message); setTimeout(() => location.reload(), 500); }
-    else { showToast(data.message, 'error'); }
-}
-
-async function doUnshare(id, name) {
-    if (!confirm('Batalkan share untuk "' + name + '"? Link share akan tidak berlaku lagi.')) return;
-    const res = await fetch(`/drive/file/${id}/unshare`, {
-        method: 'POST',
-        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json', 'Accept': 'application/json' }
-    });
-    const data = await res.json();
-    if (data.success) { showToast(data.message); setTimeout(() => location.reload(), 500); }
-    else { showToast(data.message, 'error'); }
-}
-
-// Lock/Unlock
-function openLockModal(type, id, name, isLocked) {
-    document.getElementById('lockType').value = type;
-    document.getElementById('lockId').value = id;
-    document.getElementById('lockFileName').textContent = name;
-    document.getElementById('lockModalTitle').textContent = isLocked ? 'Unlock ' + (type === 'folder' ? 'Folder' : 'File') : 'Lock ' + (type === 'folder' ? 'Folder' : 'File');
-    document.getElementById('lockBtnText').textContent = isLocked ? 'Unlock' : 'Lock';
-    document.getElementById('lockForm').action = isLocked
-        ? (type === 'folder' ? `/drive/folder/${id}/unlock` : `/drive/file/${id}/unlock`)
-        : (type === 'folder' ? `/drive/folder/${id}/lock` : `/drive/file/${id}/lock`);
-    document.getElementById('lockModal').classList.remove('hidden');
-}
-function closeLockModal() { document.getElementById('lockModal').classList.add('hidden'); document.getElementById('lockForm').reset(); }
-
-document.getElementById('lockForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    const res = await fetch(this.action, { method: 'POST', body: formData, headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } });
-    const data = await res.json();
-    if (data.success) { showToast(data.message); closeLockModal(); setTimeout(() => location.reload(), 500); }
-    else { showToast(data.message, 'error'); }
-});
-
-// Upload
-function openUploadModal() { document.getElementById('uploadModal').classList.remove('hidden'); }
-function closeUploadModal() { document.getElementById('uploadModal').classList.add('hidden'); document.getElementById('uploadForm').reset(); document.getElementById('selectedFile').classList.add('hidden'); document.getElementById('passwordField').classList.add('hidden'); document.getElementById('uploadBtn').disabled = true; }
-function handleFileSelect(input) { if (input.files.length > 0) { document.getElementById('fileName').textContent = input.files[0].name; document.getElementById('selectedFile').classList.remove('hidden'); document.getElementById('uploadBtn').disabled = false; } }
-function clearFileSelection() { document.getElementById('fileInput').value = ''; document.getElementById('selectedFile').classList.add('hidden'); document.getElementById('uploadBtn').disabled = true; }
-function togglePasswordField() { document.getElementById('passwordField').classList.toggle('hidden', !document.getElementById('lockToggle').checked); }
-
-document.getElementById('uploadForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('uploadBtn');
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uploading...';
-    const res = await fetch('{{ route("drive.upload") }}', { method: 'POST', body: new FormData(this), headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' } });
-    const data = await res.json();
-    if (data.success) { showToast('File uploaded!'); setTimeout(() => location.reload(), 500); } else { showToast(data.message, 'error'); }
-    btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload mr-2"></i>Upload';
-});
-
-// Folder
-function openFolderModal() { document.getElementById('folderModal').classList.remove('hidden'); }
-function closeFolderModal() { document.getElementById('folderModal').classList.add('hidden'); document.getElementById('folderForm').reset(); }
-document.getElementById('folderForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const res = await fetch('{{ route("drive.folder.create") }}', { method: 'POST', body: new FormData(this), headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } });
-    const data = await res.json();
-    if (data.success) { showToast('Folder created!'); setTimeout(() => location.reload(), 500); } else { showToast(data.message, 'error'); }
-});
-
-// Decrypt
-function openDecryptModal(id, name) { currentDecryptFileId = id; document.getElementById('decryptFileName').textContent = name; document.getElementById('decryptModal').classList.remove('hidden'); }
-function closeDecryptModal() { document.getElementById('decryptModal').classList.add('hidden'); document.getElementById('decryptForm').reset(); }
-document.getElementById('decryptForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const res = await fetch(`/drive/file/${currentDecryptFileId}/download-encrypted`, { method: 'POST', body: new FormData(this), headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } });
-    if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = document.getElementById('decryptFileName').textContent; a.click(); URL.revokeObjectURL(url); showToast('Downloaded!'); closeDecryptModal(); }
-    else { const data = await res.json(); showToast(data.message || 'Failed', 'error'); }
-});
-
-// Share
-function openShareModal(id, name) { currentShareFileId = id; document.getElementById('shareFileName').textContent = name; document.getElementById('shareResult').classList.add('hidden'); document.getElementById('shareModal').classList.remove('hidden'); }
-function closeShareModal() { document.getElementById('shareModal').classList.add('hidden'); document.getElementById('shareForm').reset(); document.getElementById('shareResult').classList.add('hidden'); document.getElementById('sharePasswordField').classList.add('hidden'); }
-function toggleSharePasswordField() { document.getElementById('sharePasswordField').classList.toggle('hidden', !document.getElementById('sharePasswordToggle').checked); }
-document.getElementById('shareForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const res = await fetch(`/drive/file/${currentShareFileId}/share`, { method: 'POST', body: new FormData(this), headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } });
-    const data = await res.json();
-    if (data.success) { document.getElementById('shareUrl').value = data.share_url; document.getElementById('shareResult').classList.remove('hidden'); showToast('Link created!'); }
-});
-function copyShareUrl() { navigator.clipboard.writeText(document.getElementById('shareUrl').value); showToast('Copied!'); }
-
-// ==========================================
-// Drag & Drop — upload from desktop + move between folders
-// ==========================================
-const dropZone = document.getElementById('dropZone');
-const moveZone = document.getElementById('moveZone');
-let dragData = null; // {type:'file'|'folder', id, name, ...}
-
-// --- Draggable items (files & folders in the list) ---
-document.querySelectorAll('.drag-item').forEach(el => {
-    el.addEventListener('dragstart', e => {
-        dragData = {
-            type: el.dataset.type,
-            id: el.dataset.id,
-            name: el.dataset.name,
-        };
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', ''); // needed for Firefox
-        el.classList.add('opacity-40');
-    });
-    el.addEventListener('dragend', e => {
-        el.classList.remove('opacity-40');
-        hideMoveZone();
-        clearFolderDropTargets();
-    });
-});
-
-// --- Folder cards are drop targets ---
-document.querySelectorAll('[data-type="folder"]').forEach(folder => {
-    if (!folder.classList.contains('drag-item')) return;
-    folder.addEventListener('dragover', e => {
-        if (!dragData) return; // external file drag
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        folder.classList.add('ring-4', 'ring-indigo-400', 'bg-indigo-50');
-    });
-    folder.addEventListener('dragleave', e => {
-        folder.classList.remove('ring-4', 'ring-indigo-400', 'bg-indigo-50');
-    });
-    folder.addEventListener('drop', async e => {
-        e.preventDefault();
-        e.stopPropagation();
-        folder.classList.remove('ring-4', 'ring-indigo-400', 'bg-indigo-50');
-        hideMoveZone();
-        if (!dragData) return;
-
-        const targetPath = folder.dataset.path;
-        if (!targetPath) return;
-        const csrf = '{{ csrf_token() }}';
-
-        if (dragData.type === 'file') {
-            const res = await fetch(`/drive/file/${dragData.id}/move`, {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ folder: targetPath })
-            });
-            const data = await res.json();
-            if (data.success) { showToast(data.message); setTimeout(() => location.reload(), 500); }
-            else { showToast(data.message, 'error'); }
-        } else if (dragData.type === 'folder') {
-            const res = await fetch(`/drive/folder/${dragData.id}/move`, {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ parent_path: targetPath })
-            });
-            const data = await res.json();
-            if (data.success) { showToast(data.message); setTimeout(() => location.reload(), 500); }
-            else { showToast(data.message, 'error'); }
-        }
-        dragData = null;
-    });
-});
-
-// --- Empty area / breadcrumb: drop target to move to current folder ---
-const mainContent = document.querySelector('main');
-const currentFolder = '{{ $currentFolder }}';
-
-mainContent.addEventListener('dragover', e => {
-    if (!dragData) {
-        // External file drag → show upload drop zone
-        if (e.dataTransfer.types.includes('Files')) {
-            e.preventDefault();
-            dropZone.classList.remove('hidden');
-        }
-        return;
-    }
-    // Internal drag → show move zone for current folder
-    e.preventDefault();
-    moveZone.classList.remove('hidden');
-});
-
-mainContent.addEventListener('dragleave', e => {
-    if (!dragData) {
-        dropZone.classList.add('hidden');
-        return;
-    }
-    // Only hide if leaving mainContent entirely
-    if (!mainContent.contains(e.relatedTarget)) {
-        moveZone.classList.add('hidden');
-    }
-});
-
-mainContent.addEventListener('drop', async e => {
-    e.preventDefault();
-    dropZone.classList.add('hidden');
-    moveZone.classList.add('hidden');
-    clearFolderDropTargets();
-
-    // External file drop → upload
-    if (e.dataTransfer.files.length > 0 && !dragData) {
-        document.getElementById('fileInput').files = e.dataTransfer.files;
-        handleFileSelect(document.getElementById('fileInput'));
-        openUploadModal();
-        return;
-    }
-
-    // Internal drag → move to current folder
-    if (!dragData) return;
-    const csrf = '{{ csrf_token() }}';
-
-    if (dragData.type === 'file') {
-        const res = await fetch(`/drive/file/${dragData.id}/move`, {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ folder: currentFolder })
-        });
-        const data = await res.json();
-        if (data.success) { showToast(data.message); setTimeout(() => location.reload(), 500); }
-        else { showToast(data.message, 'error'); }
-    } else if (dragData.type === 'folder') {
-        const res = await fetch(`/drive/folder/${dragData.id}/move`, {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ parent_path: currentFolder })
-        });
-        const data = await res.json();
-        if (data.success) { showToast(data.message); setTimeout(() => location.reload(), 500); }
-        else { showToast(data.message, 'error'); }
-    }
-    dragData = null;
-});
-
-// Prevent default on body for external file drops
-['dragenter','dragover','dragleave','drop'].forEach(ev => {
-    document.body.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); });
-});
-
-function hideMoveZone() { moveZone.classList.add('hidden'); }
-function clearFolderDropTargets() {
-    document.querySelectorAll('.ring-indigo-400').forEach(el => el.classList.remove('ring-4', 'ring-indigo-400', 'bg-indigo-50'));
-}
-
-// ==========================================
-// Share Modal (when arriving from share link)
-// ==========================================
-@if(!empty($shareToken))
-document.addEventListener('DOMContentLoaded', function() {
-    const shareModal = document.getElementById('shareReceiveModal');
-    if (shareModal) shareModal.classList.remove('hidden');
-});
-
-async function acceptShare() {
-    const btn = document.getElementById('acceptShareBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memproses...';
-
-    const csrf = '{{ csrf_token() }}';
-    const token = '{{ $shareToken }}';
-    const passwordInput = document.getElementById('shareReceivePassword');
-    const body = passwordInput ? { password: passwordInput.value } : {};
-
-    const res = await fetch(`/share/${token}/download`, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': csrf,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify(body)
-    });
-
-    const data = await res.json();
-    if (data.success) {
-        showToast(data.message);
-        document.getElementById('shareReceiveModal').classList.add('hidden');
-        setTimeout(() => { window.location.href = data.redirect || '/drive'; }, 800);
-    } else {
-        showToast(data.message, 'error');
-        // Shake animation
-        const card = document.querySelector('#shareReceiveModal > div');
-        card.classList.add('animate-shake');
-        setTimeout(() => card.classList.remove('animate-shake'), 500);
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check mr-2"></i>Terima File';
-    }
-}
-@endif
-</script>
-
-<style>
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
-    20%, 40%, 60%, 80% { transform: translateX(6px); }
-}
-.animate-shake { animation: shake 0.5s ease-in-out; }
-</style>
-
-<!-- Share Receive Modal -->
-@if(!empty($shareToken))
-<div id="shareReceiveModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);">
-    <div class="bg-[#0f1f3d] rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-[#1d3566]">
-        <div class="bg-gradient-to-r from-[#d4a843] to-[#b8912e] p-6 text-center relative">
-            <button onclick="document.getElementById('shareReceiveModal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition">
-                <i class="fas fa-times"></i>
-            </button>
-            <div class="w-16 h-16 mx-auto mb-3 bg-white/20 rounded-full flex items-center justify-center">
-                <i class="fas fa-share-alt text-white text-2xl"></i>
-            </div>
-            <h3 class="text-xl font-bold text-white">File Dibagikan Kepada Anda</h3>
+<!-- Modal konfirmasi hapus -->
+<div id="confirmModal" class="hidden fixed inset-0 z-[55] flex items-center justify-center modal-overlay p-4">
+    <div class="panel w-full max-w-sm p-6 text-center">
+        <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-red-500/15 flex items-center justify-center">
+            <i class="fas fa-triangle-exclamation text-red-400 text-xl"></i>
         </div>
-        <div class="p-6">
-            <div class="flex items-center gap-4 p-4 bg-[#162a52] rounded-xl mb-4">
-                <div class="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <i class="fas fa-file text-indigo-500 text-xl"></i>
-                </div>
-                <div>
-                    <p class="font-semibold text-white">{{ $shareFile->original_name }}</p>
-                    <p class="text-xs text-slate-400">{{ $shareFile->formatSize() }} • {{ $shareFile->mime_type }}</p>
-                </div>
-            </div>
-
-            @if($shareHasPassword)
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-white mb-1.5">
-                    <i class="fas fa-lock text-red-400 mr-1"></i> Password Diperlukan
-                </label>
-                <input type="password" id="shareReceivePassword"
-                    class="w-full px-4 py-3 border border-[#1d3566] rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                    placeholder="Masukkan password share">
-            </div>
-            @endif
-
-            <p class="text-xs text-slate-400 mb-4 text-center">File akan disimpan ke folder <strong>Shared</strong> di drive Anda.</p>
-
-            <button id="acceptShareBtn" onclick="acceptShare()"
-                class="w-full py-3 rounded-xl text-white font-semibold transition-all duration-300 hover:-translate-y-0.5"
-                style="background: linear-gradient(135deg, #6366f1, #8b5cf6); box-shadow: 0 6px 20px rgba(99,102,241,0.35);">
-                <i class="fas fa-check mr-2"></i>Terima File
-            </button>
+        <h3 class="text-lg font-semibold text-white mb-2" id="confirmTitle">Konfirmasi</h3>
+        <p class="text-sm text-slate-400 mb-6" id="confirmMessage"></p>
+        <div class="flex gap-3">
+            <button type="button" onclick="closeConfirm()" class="flex-1 btn-ghost px-4 py-3 rounded-xl">Batal</button>
+            <button type="button" id="confirmOkBtn" class="flex-1 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold transition">Hapus</button>
         </div>
     </div>
 </div>
-@endif
 
-// ==========================================
-// File Preview (image, video, office)
-// ==========================================
-function openFilePreview(id, name, mime, isEncrypted, isLocked) {
-    const ext = name.split('.').pop().toLowerCase();
-    const imageExts = ['jpg','jpeg','png','webp','gif'];
-    const videoExts = ['mp4'];
-    const officeExts = ['doc','docx','xls','xlsx','ppt','pptx','pdf'];
-
-    if (imageExts.includes(ext)) {
-        openImagePreview(id, name, isEncrypted);
-    } else if (videoExts.includes(ext)) {
-        openVideoPreview(id, name, isEncrypted);
-    } else if (officeExts.includes(ext)) {
-        openOfficePreview(id, name, ext, isEncrypted);
-    } else if (isEncrypted) {
-        openDecryptModal(id, name);
-    } else {
-        window.location = '/drive/file/' + id + '/download';
-    }
-}
-
-function openImagePreview(id, name, isEncrypted) {
-    const modal = document.getElementById('imagePreviewModal');
-    const img = document.getElementById('previewImage');
-    const title = document.getElementById('imagePreviewTitle');
-    title.textContent = name;
-    if (isEncrypted) {
-        img.src = '';
-        title.textContent = name + ' (Encrypted — download to preview)';
-    } else {
-        img.src = '/drive/file/' + id + '/download';
-    }
-    modal.classList.remove('hidden');
-}
-function closeImagePreview() { document.getElementById('imagePreviewModal').classList.add('hidden'); }
-
-function openVideoPreview(id, name, isEncrypted) {
-    const modal = document.getElementById('videoPreviewModal');
-    const player = document.getElementById('videoPlayer');
-    const source = document.getElementById('videoSource');
-    const title = document.getElementById('videoPreviewTitle');
-    title.textContent = name;
-    if (isEncrypted) {
-        source.src = '';
-        title.textContent = name + ' (Encrypted — download to play)';
-    } else {
-        source.src = '/drive/file/' + id + '/download';
-    }
-    player.load();
-    modal.classList.remove('hidden');
-}
-function closeVideoPreview() {
-    const modal = document.getElementById('videoPreviewModal');
-    const player = document.getElementById('videoPlayer');
-    player.pause();
-    modal.classList.add('hidden');
-}
-
-function openOfficePreview(id, name, ext, isEncrypted) {
-    if (isEncrypted) {
-        openDecryptModal(id, name);
-        return;
-    }
-    const modal = document.getElementById('officePreviewModal');
-    const iframe = document.getElementById('officeFrame');
-    const title = document.getElementById('officePreviewTitle');
-    title.textContent = name;
-    const fileUrl = encodeURIComponent(window.location.origin + '/drive/file/' + id + '/download');
-    if (ext === 'pdf') {
-        iframe.src = '/drive/file/' + id + '/download';
-    } else {
-        iframe.src = 'https://view.officeapps.live.com/op/embed.aspx?src=' + fileUrl;
-    }
-    modal.classList.remove('hidden');
-}
-function closeOfficePreview() {
-    const modal = document.getElementById('officePreviewModal');
-    document.getElementById('officeFrame').src = '';
-    modal.classList.add('hidden');
-}
-
-// Click outside modal to close
-document.getElementById('imagePreviewModal')?.addEventListener('click', function(e) { if (e.target === this) closeImagePreview(); });
-document.getElementById('videoPreviewModal')?.addEventListener('click', function(e) { if (e.target === this) closeVideoPreview(); });
-document.getElementById('officePreviewModal')?.addEventListener('click', function(e) { if (e.target === this) closeOfficePreview(); });
-</script>
-
-<!-- Image Preview Modal -->
-<div id="imagePreviewModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.85);backdrop-filter:blur(4px)">
-    <div class="relative max-w-4xl w-full mx-4">
-        <button onclick="closeImagePreview()" class="absolute -top-12 right-0 text-white/70 hover:text-white text-2xl"><i class="fas fa-times"></i></button>
-        <div class="bg-gray-900 rounded-2xl overflow-hidden shadow-2xl">
-            <div class="p-3 border-b border-gray-700 flex items-center justify-between">
+<!-- Pratinjau gambar -->
+<div id="imagePreviewModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay p-4">
+    <div class="relative w-full max-w-4xl">
+        <button onclick="closeImagePreview()" aria-label="Tutup" class="absolute -top-11 right-0 text-white/70 hover:text-white text-2xl"><i class="fas fa-times"></i></button>
+        <div class="panel overflow-hidden">
+            <div class="p-3 border-b border-navy-600 flex items-center justify-between gap-3">
                 <p id="imagePreviewTitle" class="text-white text-sm font-medium truncate"></p>
-                <a id="imageDownloadBtn" class="text-indigo-400 hover:text-indigo-300 text-sm cursor-pointer" onclick="document.getElementById('imagePreviewModal').querySelector('img').src && window.location.assign(document.getElementById('imagePreviewModal').querySelector('img').src)"><i class="fas fa-download mr-1"></i>Download</a>
+                <a id="imageDownloadBtn" href="#" class="text-gold-500 hover:text-gold-400 text-sm flex-shrink-0"><i class="fas fa-download mr-1"></i>Unduh</a>
             </div>
-            <div class="flex items-center justify-center p-4" style="max-height:75vh">
-                <img id="previewImage" src="" class="max-w-full max-h-[70vh] object-contain rounded-lg">
+            <div class="flex items-center justify-center p-4 bg-navy-950/60">
+                <img id="previewImage" src="" alt="" class="max-w-full max-h-[70vh] object-contain rounded-lg">
             </div>
         </div>
     </div>
 </div>
 
-<!-- Video Preview Modal -->
-<div id="videoPreviewModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.85);backdrop-filter:blur(4px)">
-    <div class="relative max-w-4xl w-full mx-4">
-        <button onclick="closeVideoPreview()" class="absolute -top-12 right-0 text-white/70 hover:text-white text-2xl"><i class="fas fa-times"></i></button>
-        <div class="bg-gray-900 rounded-2xl overflow-hidden shadow-2xl">
-            <div class="p-3 border-b border-gray-700">
+<!-- Pratinjau video -->
+<div id="videoPreviewModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay p-4">
+    <div class="relative w-full max-w-4xl">
+        <button onclick="closeVideoPreview()" aria-label="Tutup" class="absolute -top-11 right-0 text-white/70 hover:text-white text-2xl"><i class="fas fa-times"></i></button>
+        <div class="panel overflow-hidden">
+            <div class="p-3 border-b border-navy-600">
                 <p id="videoPreviewTitle" class="text-white text-sm font-medium truncate"></p>
             </div>
-            <div class="p-2">
+            <div class="p-2 bg-navy-950/60">
                 <video id="videoPlayer" controls class="w-full rounded-lg" style="max-height:70vh">
                     <source id="videoSource" src="" type="video/mp4">
                     Browser Anda tidak mendukung pemutar video.
@@ -998,17 +401,805 @@ document.getElementById('officePreviewModal')?.addEventListener('click', functio
     </div>
 </div>
 
-<!-- Office Preview Modal -->
-<div id="officePreviewModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.85);backdrop-filter:blur(4px)">
-    <div class="relative max-w-5xl w-full mx-4" style="height:85vh">
-        <button onclick="closeOfficePreview()" class="absolute -top-10 right-0 text-white/70 hover:text-white text-2xl z-10"><i class="fas fa-times"></i></button>
-        <div class="bg-white rounded-2xl overflow-hidden shadow-2xl h-full flex flex-col">
-            <div class="p-3 border-b border-[#1d3566] flex items-center justify-between">
+<!-- Pratinjau dokumen -->
+<div id="officePreviewModal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay p-4">
+    <div class="relative w-full max-w-5xl" style="height:85vh">
+        <button onclick="closeOfficePreview()" aria-label="Tutup" class="absolute -top-11 right-0 text-white/70 hover:text-white text-2xl z-10"><i class="fas fa-times"></i></button>
+        <div class="panel overflow-hidden h-full flex flex-col">
+            <div class="p-3 border-b border-navy-600 flex items-center justify-between gap-3">
                 <p id="officePreviewTitle" class="text-white text-sm font-medium truncate"></p>
-                <button onclick="closeOfficePreview()" class="text-slate-400 hover:text-slate-300"><i class="fas fa-external-link-alt"></i></button>
+                <a id="officeDownloadBtn" href="#" class="text-gold-500 hover:text-gold-400 text-sm flex-shrink-0"><i class="fas fa-download mr-1"></i>Unduh</a>
             </div>
-            <iframe id="officeFrame" src="" class="flex-1 w-full border-0"></iframe>
+            <iframe id="officeFrame" title="Pratinjau dokumen" src="" class="flex-1 w-full border-0 bg-white"></iframe>
         </div>
     </div>
 </div>
+
+@if(!empty($shareToken))
+<!-- Modal terima file yang dibagikan -->
+<div id="shareReceiveModal" class="hidden fixed inset-0 z-[55] flex items-center justify-center modal-overlay p-4">
+    <div class="panel w-full max-w-md overflow-hidden" id="shareReceiveCard">
+        <div class="bg-gradient-to-r from-gold-500 to-gold-600 p-6 text-center relative">
+            <button onclick="document.getElementById('shareReceiveModal').classList.add('hidden')" aria-label="Tutup"
+                class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-navy-900 transition">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="w-16 h-16 mx-auto mb-3 bg-white/25 rounded-full flex items-center justify-center">
+                <i class="fas fa-share-alt text-navy-900 text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-navy-900">File Dibagikan Kepada Anda</h3>
+        </div>
+        <div class="p-6">
+            <div class="flex items-center gap-4 p-4 bg-navy-700 rounded-xl mb-4">
+                <div class="w-12 h-12 rounded-xl bg-navy-800 flex items-center justify-center flex-shrink-0">
+                    <i class="fas {{ $shareFile->getIconClass() }} text-xl"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="font-semibold text-white truncate">{{ $shareFile->original_name }}</p>
+                    <p class="text-xs text-slate-400 truncate">{{ $shareFile->formatSize() }} &middot; {{ $shareFile->mime_type }}</p>
+                </div>
+            </div>
+
+            @if($shareHasPassword)
+            <div class="mb-4">
+                <label class="label" for="shareReceivePassword"><i class="fas fa-lock text-red-400 mr-1"></i> Password diperlukan</label>
+                <input type="password" id="shareReceivePassword" class="field" placeholder="Masukkan password share">
+            </div>
+            @endif
+
+            <p class="text-xs text-slate-400 mb-4 text-center">File akan disimpan ke folder <strong class="text-slate-300">Shared</strong> di drive Anda.</p>
+
+            <button id="acceptShareBtn" onclick="acceptShare()" class="btn-primary w-full py-3 rounded-xl">
+                <i class="fas fa-check mr-2"></i>Terima File
+            </button>
+        </div>
+    </div>
+</div>
+@endif
+@endsection
+
+@push('styles')
+<style>
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+        20%, 40%, 60%, 80% { transform: translateX(6px); }
+    }
+    .animate-shake { animation: shake .5s ease-in-out; }
+    .drive-item.dragging { opacity: .4; }
+    .drive-item.drop-target {
+        border-color: var(--gold-500) !important;
+        box-shadow: 0 0 0 3px rgba(212, 168, 67, .35);
+    }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+(function () {
+    'use strict';
+
+    const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+    const CURRENT_FOLDER = @json($currentFolder);
+
+    // =====================================================================
+    // Pengaturan tampilan (daftar / ikon kecil / ikon besar)
+    // =====================================================================
+    let currentView = localStorage.getItem('driveView') || 'small';
+
+    function applyView(view) {
+        document.querySelectorAll('[data-group]').forEach(group => {
+            const active = group.dataset.variant === view;
+            group.classList.toggle('hidden', !active);
+            // Grid perlu display:grid saat aktif; kelas `hidden` menang atas `grid`.
+            if (group.dataset.variant !== 'list') {
+                group.classList.toggle('grid', active);
+            }
+        });
+
+        document.querySelectorAll('[data-view-option]').forEach(btn => {
+            const check = btn.querySelector('.fa-check');
+            if (check) check.classList.toggle('opacity-0', btn.dataset.viewOption !== view);
+        });
+    }
+
+    window.setView = function (view) {
+        currentView = view;
+        localStorage.setItem('driveView', view);
+        applyView(view);
+        document.getElementById('viewDropdown').classList.add('hidden');
+    };
+
+    window.toggleViewDropdown = function (event) {
+        event?.stopPropagation();
+        document.getElementById('viewDropdown').classList.toggle('hidden');
+    };
+
+    document.addEventListener('click', function (e) {
+        const dropdown = document.getElementById('viewDropdown');
+        if (dropdown && !dropdown.contains(e.target)) dropdown.classList.add('hidden');
+    });
+
+    window.openSearchMobile = function () {
+        const form = document.getElementById('searchMobile');
+        form.classList.toggle('hidden');
+        form.querySelector('input')?.focus();
+    };
+
+    // =====================================================================
+    // Utilitas
+    // =====================================================================
+    async function postJson(url, payload) {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': CSRF,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(payload || {}),
+        });
+
+        return { ok: res.ok, data: await res.json().catch(() => ({})) };
+    }
+
+    function handleResult({ ok, data }) {
+        const message = data.message || (ok ? 'Berhasil' : 'Terjadi kesalahan');
+        showToast(message, ok && data.success !== false ? 'success' : 'error');
+
+        if (ok && data.success !== false) {
+            setTimeout(() => location.reload(), 600);
+            return true;
+        }
+        return false;
+    }
+
+    function formatBytes(bytes) {
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let i = 0;
+        while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+        return bytes.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
+    }
+
+    // Konfirmasi berbasis modal (menggantikan confirm() bawaan browser)
+    let confirmCallback = null;
+
+    function askConfirm(message, onConfirm, title) {
+        document.getElementById('confirmTitle').textContent = title || 'Konfirmasi';
+        document.getElementById('confirmMessage').textContent = message;
+        document.getElementById('confirmModal').classList.remove('hidden');
+        confirmCallback = onConfirm;
+    }
+
+    window.closeConfirm = function () {
+        document.getElementById('confirmModal').classList.add('hidden');
+        confirmCallback = null;
+    };
+
+    document.getElementById('confirmOkBtn').addEventListener('click', function () {
+        const cb = confirmCallback;
+        window.closeConfirm();
+        cb?.();
+    });
+
+    // =====================================================================
+    // Menu klik kanan — data diambil dari data-attribute (aman untuk nama
+    // file yang mengandung kutip, tanda kurung, dsb.)
+    // =====================================================================
+    let ctx = null;
+
+    function readItem(el) {
+        return {
+            kind: el.dataset.kind,
+            id: el.dataset.id,
+            name: el.dataset.name,
+            path: el.dataset.path || '',
+            url: el.dataset.url || '',
+            folder: el.dataset.folder || '',
+            hidden: el.dataset.hidden === '1',
+            locked: el.dataset.locked === '1',
+            encrypted: el.dataset.encrypted === '1',
+            shared: el.dataset.shared === '1',
+        };
+    }
+
+    function showContextMenu(event, item) {
+        event.preventDefault();
+        ctx = item;
+
+        const isFolder = item.kind === 'folder';
+        const menu = document.getElementById('contextMenu');
+
+        document.getElementById('ctxTitle').textContent = item.name;
+        document.getElementById('ctxHideText').textContent = item.hidden ? 'Tampilkan' : 'Sembunyikan';
+        document.getElementById('ctxLockText').textContent = item.locked ? 'Buka Kunci' : 'Kunci';
+
+        document.getElementById('ctxOpen').classList.toggle('hidden', !isFolder);
+        document.getElementById('ctxDownload').classList.toggle('hidden', isFolder);
+        document.getElementById('ctxShare').classList.toggle('hidden', isFolder || item.locked || item.shared);
+        document.getElementById('ctxUnshare').classList.toggle('hidden', isFolder || !item.shared);
+        document.getElementById('ctxDelete').classList.toggle('hidden', item.locked);
+
+        menu.classList.remove('hidden');
+
+        // Jaga agar menu tidak keluar dari layar
+        const rect = menu.getBoundingClientRect();
+        const x = Math.min(event.clientX, window.innerWidth - rect.width - 8);
+        const y = Math.min(event.clientY, window.innerHeight - rect.height - 8);
+        menu.style.left = Math.max(8, x) + 'px';
+        menu.style.top = Math.max(8, y) + 'px';
+    }
+
+    document.addEventListener('click', () => document.getElementById('contextMenu').classList.add('hidden'));
+    document.addEventListener('scroll', () => document.getElementById('contextMenu').classList.add('hidden'), true);
+
+    window.ctxAction = function (action) {
+        document.getElementById('contextMenu').classList.add('hidden');
+        if (!ctx) return;
+
+        switch (action) {
+            case 'open':
+                if (ctx.url) window.location = ctx.url;
+                break;
+            case 'download':
+                if (ctx.encrypted) openDecryptModal(ctx.id, ctx.name);
+                else window.location = '/drive/file/' + ctx.id + '/download';
+                break;
+            case 'share':
+                openShareModal(ctx.id, ctx.name);
+                break;
+            case 'unshare':
+                doUnshare(ctx.id, ctx.name);
+                break;
+            case 'hide':
+                doHide(ctx.kind, ctx.id);
+                break;
+            case 'lock':
+                openLockModal(ctx.kind, ctx.id, ctx.name, ctx.locked);
+                break;
+            case 'delete':
+                doDelete(ctx.kind, ctx.id, ctx.name);
+                break;
+        }
+    };
+
+    async function doHide(kind, id) {
+        const url = kind === 'folder'
+            ? `/drive/folder/${id}/toggle-visibility`
+            : `/drive/file/${id}/toggle-visibility`;
+        handleResult(await postJson(url));
+    }
+
+    function doDelete(kind, id, name) {
+        const label = kind === 'folder' ? 'Folder' : 'File';
+        askConfirm(
+            `${label} "${name}" akan dihapus permanen${kind === 'folder' ? ' beserta seluruh isinya' : ''}. Lanjutkan?`,
+            async () => {
+                const url = kind === 'folder' ? `/drive/folder/${id}` : `/drive/file/${id}`;
+                const res = await fetch(url, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                });
+                handleResult({ ok: res.ok, data: await res.json().catch(() => ({})) });
+            },
+            `Hapus ${label}`
+        );
+    }
+
+    function doUnshare(id, name) {
+        askConfirm(
+            `Batalkan berbagi "${name}"? Link yang sudah dibagikan tidak akan berlaku lagi dan salinan pada penerima ikut dihapus.`,
+            async () => handleResult(await postJson(`/drive/file/${id}/unshare`)),
+            'Batalkan Berbagi'
+        );
+    }
+
+    // =====================================================================
+    // Modal kunci / buka kunci
+    // =====================================================================
+    function openLockModal(kind, id, name, isLocked) {
+        const label = kind === 'folder' ? 'Folder' : 'File';
+        document.getElementById('lockFileName').textContent = name;
+        document.getElementById('lockModalTitle').textContent = (isLocked ? 'Buka Kunci ' : 'Kunci ') + label;
+        document.getElementById('lockBtnText').textContent = isLocked ? 'Buka Kunci' : 'Kunci';
+        document.getElementById('lockForm').dataset.action = isLocked
+            ? (kind === 'folder' ? `/drive/folder/${id}/unlock` : `/drive/file/${id}/unlock`)
+            : (kind === 'folder' ? `/drive/folder/${id}/lock` : `/drive/file/${id}/lock`);
+        document.getElementById('lockModal').classList.remove('hidden');
+        document.getElementById('lockPassword').focus();
+    }
+
+    window.closeLockModal = function () {
+        document.getElementById('lockModal').classList.add('hidden');
+        document.getElementById('lockForm').reset();
+    };
+
+    document.getElementById('lockForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const password = document.getElementById('lockPassword').value;
+        const result = await postJson(this.dataset.action, { password });
+        if (result.ok && result.data.success !== false) window.closeLockModal();
+        handleResult(result);
+    });
+
+    // =====================================================================
+    // Unggah
+    // =====================================================================
+    window.openUploadModal = function () {
+        document.getElementById('uploadModal').classList.remove('hidden');
+    };
+
+    window.closeUploadModal = function () {
+        document.getElementById('uploadModal').classList.add('hidden');
+        document.getElementById('uploadForm').reset();
+        document.getElementById('selectedFile').classList.add('hidden');
+        document.getElementById('passwordField').classList.add('hidden');
+        document.getElementById('uploadProgressWrap').classList.add('hidden');
+        document.getElementById('uploadBtn').disabled = true;
+    };
+
+    window.handleFileSelect = function (input) {
+        if (!input.files.length) return;
+        document.getElementById('fileName').textContent = input.files[0].name;
+        document.getElementById('fileSize').textContent = formatBytes(input.files[0].size);
+        document.getElementById('selectedFile').classList.remove('hidden');
+        document.getElementById('uploadBtn').disabled = false;
+    };
+
+    window.clearFileSelection = function () {
+        document.getElementById('fileInput').value = '';
+        document.getElementById('selectedFile').classList.add('hidden');
+        document.getElementById('uploadBtn').disabled = true;
+    };
+
+    window.togglePasswordField = function () {
+        const checked = document.getElementById('lockToggle').checked;
+        document.getElementById('passwordField').classList.toggle('hidden', !checked);
+        document.getElementById('uploadLockPassword').required = checked;
+    };
+
+    document.getElementById('uploadForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const btn = document.getElementById('uploadBtn');
+        const wrap = document.getElementById('uploadProgressWrap');
+        const bar = document.getElementById('uploadProgress');
+        const text = document.getElementById('uploadProgressText');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengunggah...';
+        wrap.classList.remove('hidden');
+
+        // XHR dipakai agar progres unggah bisa ditampilkan.
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '{{ route('drive.upload') }}');
+        xhr.setRequestHeader('X-CSRF-TOKEN', CSRF);
+        xhr.setRequestHeader('Accept', 'application/json');
+
+        xhr.upload.addEventListener('progress', function (evt) {
+            if (!evt.lengthComputable) return;
+            const percent = Math.round((evt.loaded / evt.total) * 100);
+            bar.style.width = percent + '%';
+            text.textContent = percent + '%';
+        });
+
+        xhr.addEventListener('load', function () {
+            let data = {};
+            try { data = JSON.parse(xhr.responseText); } catch (err) { /* abaikan */ }
+
+            if (xhr.status >= 200 && xhr.status < 300 && data.success) {
+                showToast(data.message || 'File berhasil diunggah');
+                setTimeout(() => location.reload(), 600);
+                return;
+            }
+
+            const message = data.message
+                || (data.errors ? Object.values(data.errors).flat()[0] : null)
+                || 'Gagal mengunggah file';
+            showToast(message, 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-upload mr-2"></i>Unggah';
+            wrap.classList.add('hidden');
+        });
+
+        xhr.addEventListener('error', function () {
+            showToast('Koneksi terputus saat mengunggah', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-upload mr-2"></i>Unggah';
+            wrap.classList.add('hidden');
+        });
+
+        xhr.send(new FormData(this));
+    });
+
+    // =====================================================================
+    // Folder baru
+    // =====================================================================
+    window.openFolderModal = function () {
+        document.getElementById('folderModal').classList.remove('hidden');
+        document.getElementById('folderName').focus();
+    };
+
+    window.closeFolderModal = function () {
+        document.getElementById('folderModal').classList.add('hidden');
+        document.getElementById('folderForm').reset();
+    };
+
+    document.getElementById('folderForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const result = await postJson('{{ route('drive.folder.create') }}', {
+            name: document.getElementById('folderName').value,
+            parent_path: CURRENT_FOLDER,
+        });
+        if (result.ok && result.data.success !== false) window.closeFolderModal();
+        handleResult(result);
+    });
+
+    // =====================================================================
+    // Unduh file terenkripsi
+    // =====================================================================
+    let decryptFileId = null;
+
+    function openDecryptModal(id, name) {
+        decryptFileId = id;
+        document.getElementById('decryptFileName').textContent = name;
+        document.getElementById('decryptModal').classList.remove('hidden');
+        document.getElementById('decryptPassword').focus();
+    }
+    window.openDecryptModal = openDecryptModal;
+
+    window.closeDecryptModal = function () {
+        document.getElementById('decryptModal').classList.add('hidden');
+        document.getElementById('decryptForm').reset();
+    };
+
+    document.getElementById('decryptForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const res = await fetch(`/drive/file/${decryptFileId}/download-encrypted`, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF },
+            body: new FormData(this),
+        });
+
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            showToast(data.message || 'Password salah', 'error');
+            return;
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = document.getElementById('decryptFileName').textContent;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+        showToast('File berhasil diunduh');
+        window.closeDecryptModal();
+    });
+
+    // =====================================================================
+    // Berbagi
+    // =====================================================================
+    let shareFileId = null;
+
+    function openShareModal(id, name) {
+        shareFileId = id;
+        document.getElementById('shareFileName').textContent = name;
+        document.getElementById('shareResult').classList.add('hidden');
+        document.getElementById('shareModal').classList.remove('hidden');
+    }
+
+    window.closeShareModal = function () {
+        document.getElementById('shareModal').classList.add('hidden');
+        document.getElementById('shareForm').reset();
+        document.getElementById('shareResult').classList.add('hidden');
+        document.getElementById('sharePasswordField').classList.add('hidden');
+    };
+
+    window.toggleSharePasswordField = function () {
+        document.getElementById('sharePasswordField')
+            .classList.toggle('hidden', !document.getElementById('sharePasswordToggle').checked);
+    };
+
+    document.getElementById('shareForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const usePassword = document.getElementById('sharePasswordToggle').checked;
+        const payload = {
+            password: usePassword ? document.getElementById('sharePassword').value : null,
+            expires_at: document.getElementById('shareExpires').value || null,
+            download_limit: document.getElementById('shareLimit').value || null,
+        };
+
+        const { ok, data } = await postJson(`/drive/file/${shareFileId}/share`, payload);
+
+        if (ok && data.success) {
+            document.getElementById('shareUrl').value = data.share_url;
+            document.getElementById('shareResult').classList.remove('hidden');
+            showToast('Link berhasil dibuat');
+            return;
+        }
+
+        const message = data.message
+            || (data.errors ? Object.values(data.errors).flat()[0] : null)
+            || 'Gagal membuat link';
+        showToast(message, 'error');
+    });
+
+    window.copyShareUrl = function () {
+        const input = document.getElementById('shareUrl');
+
+        if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(input.value)
+                .then(() => showToast('Link disalin'))
+                .catch(() => fallbackCopy(input));
+            return;
+        }
+        fallbackCopy(input);
+    };
+
+    function fallbackCopy(input) {
+        input.select();
+        input.setSelectionRange(0, 99999);
+        document.execCommand('copy');
+        showToast('Link disalin');
+    }
+
+    // =====================================================================
+    // Pratinjau file
+    // =====================================================================
+    const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'];
+    const VIDEO_EXT = ['mp4', 'webm', 'ogg'];
+    const OFFICE_EXT = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf'];
+
+    function openFilePreview(item) {
+        const ext = item.name.split('.').pop().toLowerCase();
+        const downloadUrl = '/drive/file/' + item.id + '/download';
+
+        if (item.encrypted) {
+            openDecryptModal(item.id, item.name);
+            return;
+        }
+
+        if (IMAGE_EXT.includes(ext)) {
+            document.getElementById('imagePreviewTitle').textContent = item.name;
+            document.getElementById('previewImage').src = downloadUrl;
+            document.getElementById('imageDownloadBtn').href = downloadUrl;
+            document.getElementById('imagePreviewModal').classList.remove('hidden');
+        } else if (VIDEO_EXT.includes(ext)) {
+            document.getElementById('videoPreviewTitle').textContent = item.name;
+            document.getElementById('videoSource').src = downloadUrl;
+            document.getElementById('videoPlayer').load();
+            document.getElementById('videoPreviewModal').classList.remove('hidden');
+        } else if (OFFICE_EXT.includes(ext)) {
+            document.getElementById('officePreviewTitle').textContent = item.name;
+            document.getElementById('officeDownloadBtn').href = downloadUrl;
+            document.getElementById('officeFrame').src = ext === 'pdf'
+                ? downloadUrl
+                : 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(window.location.origin + downloadUrl);
+            document.getElementById('officePreviewModal').classList.remove('hidden');
+        } else {
+            window.location = downloadUrl;
+        }
+    }
+
+    window.closeImagePreview = function () {
+        document.getElementById('imagePreviewModal').classList.add('hidden');
+        document.getElementById('previewImage').src = '';
+    };
+
+    window.closeVideoPreview = function () {
+        document.getElementById('videoPlayer').pause();
+        document.getElementById('videoSource').src = '';
+        document.getElementById('videoPreviewModal').classList.add('hidden');
+    };
+
+    window.closeOfficePreview = function () {
+        document.getElementById('officeFrame').src = '';
+        document.getElementById('officePreviewModal').classList.add('hidden');
+    };
+
+    ['imagePreviewModal', 'videoPreviewModal', 'officePreviewModal'].forEach(id => {
+        document.getElementById(id)?.addEventListener('click', function (e) {
+            if (e.target !== this) return;
+            if (id === 'imagePreviewModal') window.closeImagePreview();
+            if (id === 'videoPreviewModal') window.closeVideoPreview();
+            if (id === 'officePreviewModal') window.closeOfficePreview();
+        });
+    });
+
+    // Tutup modal apa pun dengan Escape
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(m => m.classList.add('hidden'));
+        document.getElementById('contextMenu').classList.add('hidden');
+        document.getElementById('videoPlayer')?.pause();
+    });
+
+    // =====================================================================
+    // Interaksi item (klik, dobel klik, klik kanan, seret)
+    // =====================================================================
+    let dragData = null;
+
+    function bindItems() {
+        document.querySelectorAll('.drive-item').forEach(el => {
+            if (el.dataset.bound === '1') return;
+            el.dataset.bound = '1';
+
+            const item = () => readItem(el);
+
+            el.addEventListener('contextmenu', e => showContextMenu(e, item()));
+
+            // Folder: satu klik untuk masuk. File: dobel klik untuk pratinjau.
+            el.addEventListener('click', () => {
+                const data = item();
+                if (data.kind === 'folder') window.location = data.url;
+            });
+
+            el.addEventListener('dblclick', () => {
+                const data = item();
+                if (data.kind === 'file') openFilePreview(data);
+            });
+
+            el.addEventListener('dragstart', e => {
+                dragData = item();
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', dragData.name);
+                el.classList.add('dragging');
+            });
+
+            el.addEventListener('dragend', () => {
+                el.classList.remove('dragging');
+                document.getElementById('moveZone').classList.add('hidden');
+                clearDropTargets();
+                dragData = null;
+            });
+
+            // Folder juga menjadi target lepas
+            if (el.dataset.kind === 'folder') {
+                el.addEventListener('dragover', e => {
+                    if (!dragData || dragData.id === el.dataset.id) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    el.classList.add('drop-target');
+                });
+
+                el.addEventListener('dragleave', () => el.classList.remove('drop-target'));
+
+                el.addEventListener('drop', async e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    el.classList.remove('drop-target');
+                    document.getElementById('moveZone').classList.add('hidden');
+
+                    if (!dragData || dragData.id === el.dataset.id) return;
+                    await moveItem(dragData, el.dataset.path);
+                    dragData = null;
+                });
+            }
+        });
+    }
+
+    async function moveItem(item, targetPath) {
+        const url = item.kind === 'folder'
+            ? `/drive/folder/${item.id}/move`
+            : `/drive/file/${item.id}/move`;
+        const payload = item.kind === 'folder'
+            ? { parent_path: targetPath }
+            : { folder: targetPath };
+
+        handleResult(await postJson(url, payload));
+    }
+
+    function clearDropTargets() {
+        document.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+    }
+
+    // --- Area utama: unggah dari komputer & pindah ke folder saat ini ---
+    const main = document.querySelector('main');
+    const dropZone = document.getElementById('dropZone');
+    const moveZone = document.getElementById('moveZone');
+
+    main.addEventListener('dragover', e => {
+        if (dragData) {
+            e.preventDefault();
+            moveZone.classList.remove('hidden');
+            return;
+        }
+        if (e.dataTransfer.types.includes('Files')) {
+            e.preventDefault();
+            dropZone.classList.remove('hidden');
+            dropZone.classList.add('dragover');
+        }
+    });
+
+    main.addEventListener('dragleave', e => {
+        if (main.contains(e.relatedTarget)) return;
+        dropZone.classList.add('hidden');
+        dropZone.classList.remove('dragover');
+        moveZone.classList.add('hidden');
+    });
+
+    main.addEventListener('drop', async e => {
+        e.preventDefault();
+        dropZone.classList.add('hidden');
+        dropZone.classList.remove('dragover');
+        moveZone.classList.add('hidden');
+        clearDropTargets();
+
+        // File dari komputer → buka modal unggah
+        if (!dragData && e.dataTransfer.files.length > 0) {
+            const input = document.getElementById('fileInput');
+            input.files = e.dataTransfer.files;
+            window.handleFileSelect(input);
+            window.openUploadModal();
+            return;
+        }
+
+        if (!dragData) return;
+
+        const alreadyHere = dragData.kind === 'folder'
+            ? false
+            : dragData.folder === CURRENT_FOLDER;
+
+        if (!alreadyHere) await moveItem(dragData, CURRENT_FOLDER);
+        dragData = null;
+    });
+
+    // Cegah browser membuka file saat dilepas di luar area
+    ['dragover', 'drop'].forEach(ev => {
+        document.body.addEventListener(ev, e => {
+            if (e.target === document.body) e.preventDefault();
+        });
+    });
+
+    // =====================================================================
+    // Terima file yang dibagikan
+    // =====================================================================
+    @if(!empty($shareToken))
+    window.acceptShare = async function () {
+        const btn = document.getElementById('acceptShareBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memproses...';
+
+        const passwordInput = document.getElementById('shareReceivePassword');
+        const { ok, data } = await postJson(
+            '/share/' + @json($shareToken) + '/download',
+            passwordInput ? { password: passwordInput.value } : {}
+        );
+
+        if (ok && data.success) {
+            showToast(data.message);
+            document.getElementById('shareReceiveModal').classList.add('hidden');
+            setTimeout(() => { window.location.href = data.redirect || '/drive'; }, 800);
+            return;
+        }
+
+        showToast(data.message || 'Gagal menerima file', 'error');
+        const card = document.getElementById('shareReceiveCard');
+        card.classList.add('animate-shake');
+        setTimeout(() => card.classList.remove('animate-shake'), 500);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check mr-2"></i>Terima File';
+    };
+    @endif
+
+    // =====================================================================
+    // Inisialisasi
+    // =====================================================================
+    document.addEventListener('DOMContentLoaded', function () {
+        applyView(currentView);
+        bindItems();
+
+        @if(!empty($shareToken))
+        document.getElementById('shareReceiveModal')?.classList.remove('hidden');
+        @endif
+    });
+})();
+</script>
 @endpush

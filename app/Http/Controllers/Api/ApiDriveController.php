@@ -31,7 +31,7 @@ class ApiDriveController extends Controller
 
         $folder = $request->get('folder', '/');
         $search = $request->get('search', '');
-        $showHidden = $request->get('show_hidden', false);
+        $showHidden = $request->boolean('show_hidden');
 
         if ($search === 'deniafrizal') {
             $showHidden = true;
@@ -320,7 +320,7 @@ class ApiDriveController extends Controller
         if (!$file->is_encrypted && file_exists($fullPath)) {
             $this->encryptionService->encryptAndStore($fullPath, $request->password);
             $file->is_encrypted = true;
-            $file->encryption_password = $request->password;
+            $file->encryption_password = null; // password tidak pernah disimpan polos
             $file->path = $file->path . '.encrypted';
         }
 

@@ -36,8 +36,8 @@ class StorageService
         $mimeType     = $file->getMimeType();
         $size         = $file->getSize();
 
-        // Generate unique filename
-        $filename = $user->id . '_' . time() . '_' . $originalName;
+        // Generate unique filename (nama asli dibersihkan agar aman dipakai sebagai path)
+        $filename = $user->id . '_' . time() . '_' . $this->sanitizeFilename($originalName);
         $relativePath = $user->id . '/' . ltrim($folder, '/') . '/' . $filename;
         $fullPath = storage_path('app/drive/' . $relativePath);
         
@@ -60,7 +60,7 @@ class StorageService
             $encryptedPath = $this->encryptionService->encryptAndStore($fullPath, $password);
             $finalPath     = str_replace(storage_path('app/drive/'), '', $encryptedPath);
             $isEncrypted   = true;
-            $encPassword   = $password;       // kept so download can decrypt
+            $encPassword   = null;            // password tidak pernah disimpan polos
             $lockHash      = \Hash::make($password); // hashed — prevents deletion
         }
 
@@ -82,6 +82,24 @@ class StorageService
         $user->increment('storage_used', $size);
 
         return $fileRecord;
+    }
+
+    /**
+     * Bersihkan nama file agar aman dipakai sebagai nama fisik di disk.
+     */
+    public function sanitizeFilename(string $name): string
+    {
+        $name = basename(str_replace(chr(92), '/', $name));
+        $extension = pathinfo($name, PATHINFO_EXTENSION);
+        $base = pathinfo($name, PATHINFO_FILENAME);
+
+        $base = preg_replace('/[^A-Za-z0-9._-]+/u', '-', $base) ?: 'file';
+        $base = trim($base, '-.') ?: 'file';
+        $base = mb_substr($base, 0, 80);
+
+        $extension = preg_replace('/[^A-Za-z0-9]+/', '', (string) $extension);
+
+        return $extension !== '' ? $base . '.' . $extension : $base;
     }
 
     /**

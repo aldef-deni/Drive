@@ -35,7 +35,7 @@ class DriveController extends Controller
 
         $folder = $request->get('folder', '/');
         $search = $request->get('search', '');
-        $showHidden = $request->get('show_hidden', false);
+        $showHidden = $request->boolean('show_hidden');
         
         // Easter egg: typing 'deniafrizal' reveals hidden files
         if ($search === 'deniafrizal') {
@@ -43,16 +43,18 @@ class DriveController extends Controller
         }
         
         if ($search && $search !== 'deniafrizal') {
-            // Search mode
+            // Search mode — file tersembunyi tetap tidak ikut muncul di hasil pencarian.
             $files = File::where('user_id', $user->id)
-                ->where('original_name', 'like', "%{$search}%")
+                ->where('original_name', 'like', '%' . $search . '%')
+                ->when(!$showHidden, fn ($q) => $q->where('is_hidden', false))
                 ->orderBy('created_at', 'desc')
                 ->get();
-            $folders = \App\Models\FileFolder::where('user_id', $user->id)
-                ->where('name', 'like', "%{$search}%")
+            $folders = FileFolder::where('user_id', $user->id)
+                ->where('name', 'like', '%' . $search . '%')
+                ->when(!$showHidden, fn ($q) => $q->where('is_hidden', false))
                 ->orderBy('name')
                 ->get();
-            $breadcrumbs = [['name' => 'Drive', 'path' => '/'], ['name' => 'Search: ' . $search, 'path' => '/']];
+            $breadcrumbs = [['name' => 'Drive', 'path' => '/'], ['name' => 'Pencarian: ' . $search, 'path' => '/']];
         } else {
             $contents = $this->storageService->getFolderContents($user, $folder, $showHidden);
             $files = $contents['files'];
@@ -175,17 +177,20 @@ class DriveController extends Controller
     /**
      * Delete file.
      */
-    public function destroy(File $file)
+    public function destroy(Request $request, File $file)
     {
         if ($file->user_id !== Auth::id()) {
             abort(403);
         }
 
         if ($file->lock_password) {
-            return response()->json([
-                'success' => false,
-                'message' => 'File terkunci. Harap unlock terlebih dahulu sebelum menghapus.',
-            ], 403);
+            $message = 'File terkunci. Harap unlock terlebih dahulu sebelum menghapus.';
+
+            if (!$request->expectsJson()) {
+                return back()->with('error', $message);
+            }
+
+            return response()->json(['success' => false, 'message' => $message], 403);
         }
 
         $this->storageService->deleteFile($file);
@@ -217,6 +222,10 @@ class DriveController extends Controller
         // Check quota after deletion
         \App\Models\Notification::createAndCheckQuota(Auth::user());
 
+        if (!$request->expectsJson()) {
+            return back()->with('success', 'File berhasil dihapus');
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'File berhasil dihapus',
@@ -241,7 +250,7 @@ class DriveController extends Controller
 
         // Cannot delete folder that contains locked files
         $hasLockedFiles = File::where('user_id', Auth::id())
-            ->where('folder', 'like', $folder->path . '%')
+            ->where(fn ($q) => $this->scopeInsideFolder($q, 'folder', $folder->path))
             ->whereNotNull('lock_password')
             ->exists();
 
@@ -254,16 +263,16 @@ class DriveController extends Controller
 
         // Delete files inside folder
         $files = File::where('user_id', Auth::id())
-            ->where('folder', 'like', $folder->path . '%')
+            ->where(fn ($q) => $this->scopeInsideFolder($q, 'folder', $folder->path))
             ->get();
-        
+
         foreach ($files as $file) {
             $this->storageService->deleteFile($file);
         }
 
         // Delete subfolders
         FileFolder::where('user_id', Auth::id())
-            ->where('parent_path', 'like', $folder->path . '%')
+            ->where(fn ($q) => $this->scopeInsideFolder($q, 'parent_path', $folder->path))
             ->delete();
 
         // Delete folder itself
@@ -392,7 +401,7 @@ class DriveController extends Controller
         }
 
         // Cannot move folder into itself
-        if (str_starts_with($newParent, $folder->path)) {
+        if ($newParent === $folder->path || str_starts_with($newParent, rtrim($folder->path, '/') . '/')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Tidak bisa memindahkan folder ke dalam dirinya sendiri.',
@@ -409,23 +418,23 @@ class DriveController extends Controller
 
         // Update all subfolders paths
         $subfolders = FileFolder::where('user_id', Auth::id())
-            ->where('parent_path', 'like', $oldPath . '%')
+            ->where(fn ($q) => $this->scopeInsideFolder($q, 'parent_path', $oldPath))
             ->get();
 
         foreach ($subfolders as $sub) {
-            $sub->parent_path = str_replace($oldPath, $newPath, $sub->parent_path);
-            $sub->path = str_replace($oldPath, $newPath, $sub->path);
+            $sub->parent_path = $this->replacePathPrefix($sub->parent_path, $oldPath, $newPath);
+            $sub->path = $this->replacePathPrefix($sub->path, $oldPath, $newPath);
             $sub->save();
         }
 
         // Update all files in folder and subfolders
         $files = File::where('user_id', Auth::id())
-            ->where('folder', 'like', $oldPath . '%')
+            ->where(fn ($q) => $this->scopeInsideFolder($q, 'folder', $oldPath))
             ->get();
 
         foreach ($files as $file) {
             $oldFullPath = storage_path('app/drive/' . $file->path);
-            $newRelativePath = str_replace($oldPath, $newPath, $file->path);
+            $newRelativePath = $this->replacePathPrefix($file->path, ltrim($oldPath, '/'), ltrim($newPath, '/'));
             $newFullPath = storage_path('app/drive/' . $newRelativePath);
 
             $newDir = dirname($newFullPath);
@@ -438,7 +447,7 @@ class DriveController extends Controller
             }
 
             $file->path = $newRelativePath;
-            $file->folder = str_replace($oldPath, $newPath, $file->folder);
+            $file->folder = $this->replacePathPrefix($file->folder, $oldPath, $newPath);
             $file->save();
         }
 
@@ -486,9 +495,15 @@ class DriveController extends Controller
         $file->is_hidden = !$file->is_hidden;
         $file->save();
 
+        $message = $file->is_hidden ? 'File disembunyikan' : 'File ditampilkan';
+
+        if (!request()->expectsJson()) {
+            return back()->with('success', $message);
+        }
+
         return response()->json([
             'success' => true,
-            'message' => $file->is_hidden ? 'File disembunyikan' : 'File ditampilkan',
+            'message' => $message,
             'is_hidden' => $file->is_hidden,
         ]);
     }
@@ -505,9 +520,15 @@ class DriveController extends Controller
         $folder->is_hidden = !$folder->is_hidden;
         $folder->save();
 
+        $message = $folder->is_hidden ? 'Folder disembunyikan' : 'Folder ditampilkan';
+
+        if (!request()->expectsJson()) {
+            return back()->with('success', $message);
+        }
+
         return response()->json([
             'success' => true,
-            'message' => $folder->is_hidden ? 'Folder disembunyikan' : 'Folder ditampilkan',
+            'message' => $message,
             'is_hidden' => $folder->is_hidden,
         ]);
     }
@@ -536,7 +557,7 @@ class DriveController extends Controller
         if (!$file->is_encrypted && file_exists($fullPath)) {
             $this->encryptionService->encryptAndStore($fullPath, $request->password);
             $file->is_encrypted = true;
-            $file->encryption_password = $request->password;
+            $file->encryption_password = null; // password tidak pernah disimpan polos
             $file->path = $file->path . '.encrypted';
         }
 
@@ -653,28 +674,69 @@ class DriveController extends Controller
     /**
      * Show hidden files page.
      */
-    public function showHidden(Request $request)
+    public function showHidden()
     {
         $user = Auth::user();
-        $unhidePassword = $request->get('unhide_password', '');
-        $unhideSuccess = false;
 
-        $files = File::where('user_id', $user->id)
-            ->where('is_hidden', true)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        // Daftar hanya dimuat setelah gerbang password dilewati.
+        $verified = (bool) session('hidden_verified');
 
-        $folders = FileFolder::where('user_id', $user->id)
-            ->where('is_hidden', true)
-            ->orderBy('name')
-            ->get();
+        $files = $verified
+            ? File::where('user_id', $user->id)
+                ->where('is_hidden', true)
+                ->orderBy('created_at', 'desc')
+                ->get()
+            : collect();
+
+        $folders = $verified
+            ? FileFolder::where('user_id', $user->id)
+                ->where('is_hidden', true)
+                ->orderBy('name')
+                ->get()
+            : collect();
 
         return view('drive.hidden', [
             'files' => $files,
             'folders' => $folders,
-            'unhidePassword' => $unhidePassword,
-            'unhideSuccess' => $unhideSuccess,
+            'verified' => $verified,
         ]);
+    }
+
+    /**
+     * Tutup kembali hidden system pada sesi ini.
+     */
+    public function lockHidden(Request $request)
+    {
+        $request->session()->forget('hidden_verified');
+
+        return redirect()->route('drive.hidden')->with('success', 'Hidden system dikunci kembali');
+    }
+
+    /**
+     * Password hidden system = password akun, atau salah satu password lock milik user.
+     */
+    private function checkHiddenPassword($user, string $password): bool
+    {
+        if (Hash::check($password, $user->password)) {
+            return true;
+        }
+
+        $lockedItems = File::where('user_id', $user->id)
+            ->whereNotNull('lock_password')
+            ->pluck('lock_password')
+            ->merge(
+                FileFolder::where('user_id', $user->id)
+                    ->whereNotNull('lock_password')
+                    ->pluck('lock_password')
+            );
+
+        foreach ($lockedItems as $hash) {
+            if ($hash && Hash::check($password, $hash)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -686,24 +748,10 @@ class DriveController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = Auth::user();
-
-        // Check against user's lock passwords on any file/folder
-        $hasLock = \App\Models\File::where('user_id', $user->id)
-            ->whereNotNull('lock_password')
-            ->where('lock_password', '!=', '')
-            ->exists();
-
-        // Use the first lock password found as the hidden system password
-        $lockedFile = \App\Models\File::where('user_id', $user->id)
-            ->whereNotNull('lock_password')
-            ->first();
-
-        if (!$lockedFile || !\Hash::check($request->password, $lockedFile->lock_password)) {
-            // Fallback: also accept user password
-            if (!\Hash::check($request->password, $user->password)) {
-                return back()->withErrors(['password' => 'Password salah. Gunakan password lock file atau password akun Anda.'])->withInput();
-            }
+        if (!$this->checkHiddenPassword(Auth::user(), $request->password)) {
+            return back()
+                ->withErrors(['password' => 'Password salah. Gunakan password lock file atau password akun Anda.'])
+                ->withInput();
         }
 
         session(['hidden_verified' => true]);
@@ -799,6 +847,32 @@ class DriveController extends Controller
             'file' => $file,
             'shares' => $file->shares,
         ]);
+    }
+
+    /**
+     * Batasi query ke folder tertentu beserta seluruh isinya, tanpa ikut menyentuh
+     * folder lain yang kebetulan berawalan sama (mis. "/Foto" vs "/Foto Lama").
+     */
+    private function scopeInsideFolder($query, string $column, string $path)
+    {
+        return $query->where($column, $path)
+            ->orWhere($column, 'like', rtrim($path, '/') . '/%');
+    }
+
+    /**
+     * Ganti awalan path hanya bila benar-benar sebuah awalan folder.
+     */
+    private function replacePathPrefix(string $value, string $oldPrefix, string $newPrefix): string
+    {
+        if ($value === $oldPrefix) {
+            return $newPrefix;
+        }
+
+        if (str_starts_with($value, rtrim($oldPrefix, '/') . '/')) {
+            return rtrim($newPrefix, '/') . substr($value, strlen(rtrim($oldPrefix, '/')));
+        }
+
+        return $value;
     }
 
     /**

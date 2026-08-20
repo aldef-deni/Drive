@@ -29,12 +29,15 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        if (Auth::attempt($credentials)) {
+        if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $user = Auth::user();
-            
+
             if (!$user->is_active) {
                 Auth::logout();
-                return back()->withErrors(['email' => 'Akun Anda telah dinonaktifkan.']);
+
+                return back()->withErrors([
+                    'email' => 'Akun Anda belum aktif. Mohon tunggu verifikasi dari Admin Dekorasi.',
+                ])->onlyInput('email');
             }
 
             $request->session()->regenerate();
@@ -68,15 +71,18 @@ class AuthController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
+            'email' => 'required|email|max:255|unique:users,email',
             'password' => ['required', 'confirmed', Password::min(8)],
         ]);
 
+        // Akun dibuat non-aktif — sesuai alur di halaman register, aktivasi
+        // dilakukan admin lewat menu User Management.
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'storage_quota' => 104857600, // 100MB default
+            'is_active' => false,
         ]);
 
         // Notify all admins about new registration
@@ -86,7 +92,7 @@ class AuthController extends Controller
                 'user_id' => $admin->id,
                 'type'    => 'new_registration',
                 'title'   => 'Pengguna Baru Mendaftar',
-                'message' => $request->name . ' (' . $request->email . ') telah mendaftar. Periksa menu User Management.',
+                'message' => $request->name . ' (' . $request->email . ') telah mendaftar dan menunggu aktivasi. Periksa menu User Management.',
                 'icon'    => 'fas fa-user-plus',
                 'color'   => 'blue',
                 'url'     => '/admin/users',

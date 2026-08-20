@@ -45,8 +45,8 @@ Route::middleware('auth:api')->group(function () {
     // Hidden system
     Route::get('/drive/hidden', [ApiDriveController::class, 'showHidden']);
     Route::post('/drive/hidden/verify', [ApiDriveController::class, 'verifyHiddenPassword']);
-    Route::post('/drive/hidden/{file}/unhide', [ApiDriveController::class, 'unhideFile']);
-    Route::post('/drive/hidden/{folder}/unhide', [ApiDriveController::class, 'unhideFolder']);
+    Route::post('/drive/hidden/file/{file}/unhide', [ApiDriveController::class, 'unhideFile']);
+    Route::post('/drive/hidden/folder/{folder}/unhide', [ApiDriveController::class, 'unhideFolder']);
 
     // Profile
     Route::get('/profile', [ApiProfileController::class, 'show']);

@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Login - Dekorasi Drive</title>
     <link rel="icon" href="{{ asset('logo-dekorasi.png') }}" type="image/png">
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -17,8 +17,10 @@
         }
         
         html, body {
-            height: 100%;
-            overflow: hidden;
+            min-height: 100%;
+            /* Jangan kunci scroll: pada layar pendek kartu form bisa terpotong. */
+            overflow-x: hidden;
+            overflow-y: auto;
         }
         
         :root {
@@ -39,22 +41,24 @@
                 radial-gradient(ellipse at 50% 50%, rgba(22, 42, 82, 0.5) 0%, transparent 70%),
                 linear-gradient(135deg, #060d18 0%, #0a1628 25%, #0f1f3d 50%, #162a52 75%, #0f1f3d 100%);
             min-height: 100vh;
-            height: 100vh;
             display: flex;
+            padding: 2rem 0;
             align-items: center;
             justify-content: center;
             position: relative;
-            overflow: hidden;
+            overflow-x: hidden;
         }
-        
+
         /* Animated gold particles */
         .login-bg::before {
             content: '';
-            position: absolute;
+            /* fixed: partikel dekoratif tidak boleh ikut menambah tinggi halaman */
+            position: fixed;
             top: -50%;
             left: -50%;
             width: 200%;
             height: 200%;
+            z-index: 0;
             background: 
                 radial-gradient(2px 2px at 20% 30%, rgba(212, 168, 67, 0.3) 0%, transparent 100%),
                 radial-gradient(2px 2px at 40% 70%, rgba(212, 168, 67, 0.2) 0%, transparent 100%),
@@ -75,7 +79,7 @@
         /* Gold line accent */
         .login-bg::after {
             content: '';
-            position: absolute;
+            position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
@@ -298,17 +302,17 @@
     </style>
 </head>
 <body class="login-bg">
-    <div class="w-full max-w-md px-4">
+    <div class="w-full max-w-md px-4 relative z-10">
         <!-- Logo -->
         <div class="text-center mb-6">
             <img src="{{ asset('logo-dekorasi.png') }}" alt="Logo" class="w-16 h-16 mx-auto rounded-2xl logo-emboss mb-3">
             <h1 class="text-2xl font-bold text-white title-glow">Dekorasi Drive</h1>
-            <p class="text-white/40 text-sm mt-1">Secure File Storage</p>
+            <p class="text-white/40 text-sm mt-1">Penyimpanan File Aman</p>
         </div>
         
         <!-- Login Card -->
         <div class="embossed-card p-7 md:p-8">
-            <h2 class="text-xl font-bold text-white mb-6 title-glow">Sign In</h2>
+            <h2 class="text-xl font-bold text-white mb-6 title-glow">Masuk</h2>
             
             @if($errors->any())
             <div class="mb-5 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-sm">
@@ -321,11 +325,11 @@
                 @csrf
                 
                 <div class="mb-4">
-                    <label class="block text-white/60 text-sm mb-2 font-medium">Email Address</label>
+                    <label class="block text-white/60 text-sm mb-2 font-medium">Alamat Email</label>
                     <div class="input-premium">
                         <i class="fas fa-envelope input-icon"></i>
                         <input type="email" name="email" value="{{ old('email') }}" required autofocus
-                            placeholder="Enter your email">
+                            placeholder="Masukkan email Anda">
                     </div>
                 </div>
                 
@@ -334,7 +338,7 @@
                     <div class="input-premium">
                         <i class="fas fa-lock input-icon"></i>
                         <input type="password" name="password" id="password" required
-                            placeholder="Enter your password">
+                            placeholder="Masukkan password Anda">
                         <span class="password-toggle" onclick="togglePassword()">
                             <i class="fas fa-eye" id="eyeIcon"></i>
                         </span>
@@ -342,19 +346,19 @@
                 </div>
                 
                 <div class="flex items-center mb-6">
-                    <input type="checkbox" name="remember" class="checkbox-premium">
-                    <label class="text-white/50 text-sm ml-3 cursor-pointer select-none">Remember me</label>
+                    <input type="checkbox" name="remember" id="remember" class="checkbox-premium">
+                    <label for="remember" class="text-white/50 text-sm ml-3 cursor-pointer select-none">Ingat saya</label>
                 </div>
                 
                 <button type="submit" class="btn-premium w-full">
-                    <i class="fas fa-sign-in-alt mr-2"></i> Sign In
+                    <i class="fas fa-right-to-bracket mr-2"></i> Masuk
                 </button>
             </form>
             
             <div class="mt-6 pt-5 divider-gold">
                 <p class="text-center text-white/35 text-sm">
-                    Don't have an account? 
-                    <a href="{{ route('register') }}" class="text-[#d4a843] hover:text-[#e4be5a] font-semibold transition">Create Account</a>
+                    Belum punya akun? 
+                    <a href="{{ route('register') }}" class="text-[#d4a843] hover:text-[#e4be5a] font-semibold transition">Daftar Sekarang</a>
                 </p>
             </div>
         </div>

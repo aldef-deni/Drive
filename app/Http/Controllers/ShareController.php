@@ -116,7 +116,21 @@ class ShareController extends Controller
             return response()->json(['success' => false, 'message' => 'File tidak ditemukan di server'], 404);
         }
 
-        $newFilename = $user->id . '_' . time() . '_' . $shareFile->original_name;
+        if ($user->storage_used + $shareFile->size > $user->storage_quota) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kuota penyimpanan Anda tidak cukup untuk menerima file ini.',
+            ], 400);
+        }
+
+        // $shareFile->path sudah berakhiran .encrypted bila file terenkripsi,
+        // jadi salinan cukup mengikuti nama file sumber apa adanya.
+        $storageService = app(StorageService::class);
+        $newFilename = $user->id . '_' . time() . '_' . $storageService->sanitizeFilename($shareFile->original_name);
+        if ($shareFile->is_encrypted) {
+            $newFilename .= '.encrypted';
+        }
+
         $destRelativePath = $user->id . '/Shared/' . $newFilename;
         $destFullPath = storage_path('app/drive/' . $destRelativePath);
 
@@ -125,14 +139,8 @@ class ShareController extends Controller
             mkdir($destDir, 0755, true);
         }
 
-        copy($sourcePath, $destFullPath);
-
-        // If encrypted, also copy encrypted version and keep encryption
-        if ($shareFile->is_encrypted) {
-            $encryptedSource = $sourcePath . '.encrypted';
-            if (file_exists($encryptedSource)) {
-                copy($encryptedSource, $destFullPath . '.encrypted');
-            }
+        if (!copy($sourcePath, $destFullPath)) {
+            return response()->json(['success' => false, 'message' => 'Gagal menyalin file ke drive Anda'], 500);
         }
 
         // Increment download count
@@ -145,10 +153,10 @@ class ShareController extends Controller
             'original_name'       => $shareFile->original_name,
             'mime_type'           => $shareFile->mime_type,
             'size'                => $shareFile->size,
-            'path'                => $shareFile->is_encrypted ? $destRelativePath . '.encrypted' : $destRelativePath,
+            'path'                => $destRelativePath,
             'folder'              => '/Shared',
             'is_encrypted'        => $shareFile->is_encrypted,
-            'encryption_password' => $shareFile->encryption_password,
+            'encryption_password' => null,
             'lock_password'       => null,
             'share_id'            => $share->id,
         ]);

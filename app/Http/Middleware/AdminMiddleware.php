@@ -15,11 +15,22 @@ class AdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!auth()->check()) {
+        // Pakai user dari request agar guard API (token) ikut terbaca, bukan hanya guard web.
+        $user = $request->user();
+
+        if (!$user) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Belum login.'], 401);
+            }
+
             return redirect('/login');
         }
 
-        if (!auth()->user()->isAdmin()) {
+        if (!$user->isAdmin()) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Akses ditolak. Hanya admin yang diizinkan.'], 403);
+            }
+
             abort(403, 'Akses ditolak. Hanya admin yang diizinkan.');
         }
 

@@ -5,31 +5,39 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DriveController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\ShareController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\NotificationController;
 
 // Home redirect
 Route::get('/', function () {
-    if (auth()->check()) {
-        return redirect('/drive');
-    }
-    return redirect('/login');
+    return redirect(auth()->check() ? '/drive' : '/login');
 });
 
-// Auth routes
-Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
-Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-Route::post('/register', [AuthController::class, 'register']);    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+// Guest routes
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+    Route::post('/register', [AuthController::class, 'register']);
+});
+
+// Authenticated routes
+Route::middleware('auth')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     // Profile routes
-    Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
-    Route::put('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
-    Route::put('/profile/password', [\App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.password');
-    Route::post('/profile/avatar', [\App\Http\Controllers\ProfileController::class, 'updateAvatar'])->name('profile.avatar');
+    Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar');
+    Route::delete('/profile/avatar', [ProfileController::class, 'destroyAvatar'])->name('profile.avatar.destroy');
 
     // Notification routes
-    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
-    Route::post('/notifications/{notification}/read', [\App\Http\Controllers\NotificationController::class, 'markRead'])->name('notifications.read');
-    Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::get('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+});
 
 // Drive routes
 Route::prefix('drive')->middleware('auth')->group(function () {
@@ -43,6 +51,7 @@ Route::prefix('drive')->middleware('auth')->group(function () {
     Route::post('/folder/{folder}/toggle-visibility', [DriveController::class, 'toggleFolderVisibility'])->name('drive.folder.toggle-visibility');
     Route::get('/hidden', [DriveController::class, 'showHidden'])->name('drive.hidden');
     Route::post('/hidden/verify', [DriveController::class, 'verifyHiddenPassword'])->name('drive.hidden.verify');
+    Route::post('/hidden/lock', [DriveController::class, 'lockHidden'])->name('drive.hidden.lock');
     Route::post('/file/{file}/share', [DriveController::class, 'share'])->name('drive.share');
     Route::post('/file/{file}/unshare', [DriveController::class, 'unshare'])->name('drive.unshare');
     Route::get('/file/{file}/info', [DriveController::class, 'info'])->name('drive.info');

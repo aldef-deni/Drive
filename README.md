@@ -1,66 +1,94 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Dekorasi Drive
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplikasi penyimpanan file dan folder berbasis Laravel 11 untuk Dekorasi.me.
+Produksi: <https://drive.dekorasi.me>
 
-## About Laravel
+## Fitur
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- Unggah, unduh, pindah (drag & drop), dan hapus file/folder
+- Tiga mode tampilan: Daftar, Ikon Kecil, Ikon Besar
+- Kunci file dengan password (file ikut dienkripsi AES-256-CBC)
+- Sembunyikan file/folder + **Hidden System** dengan gerbang password
+- Berbagi file lewat link (opsional: password, masa berlaku, batas unduhan)
+- Pratinjau gambar, video, PDF, dan dokumen Office
+- Notifikasi in-app (kuota menipis, file dihapus, user baru mendaftar, dll.)
+- Panel admin: manajemen user, kuota, aktivasi akun
+- API untuk aplikasi mobile (`routes/api.php`, guard token `auth:api`)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Kebutuhan Sistem
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- PHP 8.2+ dengan ekstensi `openssl`, `pdo_mysql`, `mbstring`, `fileinfo`, `gd`
+- MySQL 5.7+ / MariaDB
+- Composer
 
-## Learning Laravel
+## Instalasi Lokal
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed          # membuat akun admin@dekorasi.me / password
+php artisan storage:link            # WAJIB, agar avatar bisa tampil
+php artisan serve
+```
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## Menjalankan Test
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Test memakai database terpisah bernama `dekorasi_drive_test` (lihat `phpunit.xml`).
+Buat dulu databasenya, lalu:
 
-## Laravel Sponsors
+```bash
+php artisan test
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Deploy ke cPanel
 
-### Premium Partners
+1. Unggah dan ekstrak arsip perubahan ke root aplikasi.
+2. Jalankan migrasi bila ada perubahan struktur: `php artisan migrate --force`
+3. Bersihkan cache lama, lalu bangun ulang:
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+   ```bash
+   php artisan config:clear
+   php artisan route:clear
+   php artisan view:clear
+   php artisan config:cache
+   php artisan route:cache
+   php artisan view:cache
+   ```
 
-## Contributing
+4. Pastikan symlink storage aktif: `php artisan storage:link`
+5. Pastikan folder berikut bisa ditulis: `storage/`, `bootstrap/cache/`
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Pengaturan `.env` untuk produksi
 
-## Code of Conduct
+`.env` tidak ikut di-commit. Di server produksi wajib diisi:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://drive.dekorasi.me
+```
 
-## Security Vulnerabilities
+> **Penting:** selama `APP_DEBUG=true`, setiap error menampilkan seluruh stack
+> trace beserta potongan kode sumber ke pengunjung. Ini yang membuat halaman
+> error sebelumnya membocorkan isi file Blade. Selalu `false` di produksi.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+> **Penting:** jangan mengganti `APP_KEY` setelah ada file yang dikunci.
+> Kunci enkripsi file diturunkan dari `APP_KEY`, sehingga mengubahnya membuat
+> file terkunci yang lama tidak bisa dibuka lagi.
 
-## License
+## Struktur Singkat
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+| Path | Isi |
+| --- | --- |
+| `app/Http/Controllers/DriveController.php` | Operasi drive (upload, lock, share, move) |
+| `app/Http/Controllers/Api/` | Endpoint untuk aplikasi mobile |
+| `app/Services/StorageService.php` | Penyimpanan fisik + kuota |
+| `app/Services/FileEncryptionService.php` | Enkripsi/dekripsi file |
+| `resources/views/drive/` | Halaman drive + partial kartu file/folder |
+| `resources/views/layouts/app.blade.php` | Layout, sistem desain (navy + gold) |
+| `drive-mobile/` | Aplikasi React Native (Expo) |
+
+## Lisensi
+
+Proprietary — Dekorasi.me.

@@ -10,7 +10,7 @@
         <p class="text-sm text-slate-400">{{ $notifications->total() }} notifikasi</p>
         <form action="{{ route('notifications.read-all') }}" method="POST">
             @csrf
-            <button type="submit" class="text-sm text-[#d4a843] hover:text-[#e4be5a] font-medium">
+            <button type="submit" class="text-sm text-gold-500 hover:text-gold-400 font-medium">
                 <i class="fas fa-check-double mr-1"></i>Tandai semua dibaca
             </button>
         </form>
@@ -19,7 +19,7 @@
     <div class="space-y-2 md:space-y-3">
         @foreach($notifications as $notif)
         <a href="{{ $notif->url ? route('notifications.read', $notif) : '#' }}"
-           class="block bg-[#0f1f3d] rounded-xl border border-[#1d3566] p-3 md:p-4 transition hover:shadow-md {{ $notif->is_read ? '' : 'border-[#d4a843]/40 bg-[#162a52]/50' }}">
+           class="block bg-[#0f1f3d] rounded-xl border border-navy-600 p-3 md:p-4 transition hover:shadow-md {{ $notif->is_read ? '' : 'border-[#d4a843]/40 bg-navy-700/50' }}">
             <div class="flex items-start gap-3 md:gap-4">
                 <div class="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center flex-shrink-0
                     @if($notif->color === 'amber') bg-amber-500/20 text-amber-400
@@ -55,7 +55,7 @@
     </div>
     @else
     <div class="text-center py-12 md:py-16">
-        <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-[#162a52] flex items-center justify-center">
+        <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-navy-700 flex items-center justify-center">
             <i class="fas fa-bell-slash text-3xl text-slate-500"></i>
         </div>
         <h3 class="text-lg font-semibold text-white mb-1">Belum Ada Notifikasi</h3>
