@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\File;
 use App\Models\FileFolder;
 use App\Models\FileShare;
+use App\Models\Setting;
 use App\Services\StorageService;
 use App\Services\FileEncryptionService;
 use Illuminate\Http\Request;
@@ -34,16 +35,21 @@ class DriveController extends Controller
         $this->storageService->recalculateStorage($user);
 
         $folder = $request->get('folder', '/');
-        $search = $request->get('search', '');
-        $showHidden = $request->boolean('show_hidden');
-        
-        // Easter egg: typing 'deniafrizal' reveals hidden files
-        if ($search === 'deniafrizal') {
-            $showHidden = true;
+        $search = trim((string) $request->get('search', ''));
+
+        // Mengetik kata kunci rahasia di kolom pencarian membuka mode ungkap.
+        // Kata kuncinya diatur admin lewat menu Hidden System.
+        if ($search !== '' && Setting::matchesHiddenKeyword($search)) {
+            $request->session()->put('hidden_revealed', true);
+
+            return redirect()->route('drive.index', ['folder' => $folder]);
         }
-        
-        if ($search && $search !== 'deniafrizal') {
-            // Search mode — file tersembunyi tetap tidak ikut muncul di hasil pencarian.
+
+        // Mode ungkap bertahan selama sesi supaya user tetap bisa berpindah folder.
+        $showHidden = (bool) $request->session()->get('hidden_revealed', false);
+
+        if ($search !== '') {
+            // File tersembunyi hanya ikut muncul saat mode ungkap aktif.
             $files = File::where('user_id', $user->id)
                 ->where('original_name', 'like', '%' . $search . '%')
                 ->when(!$showHidden, fn ($q) => $q->where('is_hidden', false))
@@ -71,6 +77,16 @@ class DriveController extends Controller
             'search' => $search,
             'showHidden' => $showHidden,
         ]);
+    }
+
+    /**
+     * Tutup kembali mode ungkap file tersembunyi.
+     */
+    public function hideRevealed(Request $request)
+    {
+        $request->session()->forget('hidden_revealed');
+
+        return redirect()->route('drive.index', ['folder' => $request->get('folder', '/')]);
     }
 
     /**
@@ -669,94 +685,6 @@ class DriveController extends Controller
             'success' => true,
             'message' => 'Folder berhasil di-unlock',
         ]);
-    }
-
-    /**
-     * Show hidden files page.
-     */
-    public function showHidden()
-    {
-        $user = Auth::user();
-
-        // Daftar hanya dimuat setelah gerbang password dilewati.
-        $verified = (bool) session('hidden_verified');
-
-        $files = $verified
-            ? File::where('user_id', $user->id)
-                ->where('is_hidden', true)
-                ->orderBy('created_at', 'desc')
-                ->get()
-            : collect();
-
-        $folders = $verified
-            ? FileFolder::where('user_id', $user->id)
-                ->where('is_hidden', true)
-                ->orderBy('name')
-                ->get()
-            : collect();
-
-        return view('drive.hidden', [
-            'files' => $files,
-            'folders' => $folders,
-            'verified' => $verified,
-        ]);
-    }
-
-    /**
-     * Tutup kembali hidden system pada sesi ini.
-     */
-    public function lockHidden(Request $request)
-    {
-        $request->session()->forget('hidden_verified');
-
-        return redirect()->route('drive.hidden')->with('success', 'Hidden system dikunci kembali');
-    }
-
-    /**
-     * Password hidden system = password akun, atau salah satu password lock milik user.
-     */
-    private function checkHiddenPassword($user, string $password): bool
-    {
-        if (Hash::check($password, $user->password)) {
-            return true;
-        }
-
-        $lockedItems = File::where('user_id', $user->id)
-            ->whereNotNull('lock_password')
-            ->pluck('lock_password')
-            ->merge(
-                FileFolder::where('user_id', $user->id)
-                    ->whereNotNull('lock_password')
-                    ->pluck('lock_password')
-            );
-
-        foreach ($lockedItems as $hash) {
-            if ($hash && Hash::check($password, $hash)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Verify hidden system password.
-     */
-    public function verifyHiddenPassword(Request $request)
-    {
-        $request->validate([
-            'password' => 'required|string',
-        ]);
-
-        if (!$this->checkHiddenPassword(Auth::user(), $request->password)) {
-            return back()
-                ->withErrors(['password' => 'Password salah. Gunakan password lock file atau password akun Anda.'])
-                ->withInput();
-        }
-
-        session(['hidden_verified' => true]);
-
-        return redirect()->route('drive.hidden');
     }
 
     /**

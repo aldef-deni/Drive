@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\File;
 use App\Models\FileFolder;
 use App\Models\FileShare;
+use App\Models\Setting;
 use App\Services\StorageService;
 use App\Services\FileEncryptionService;
 use Illuminate\Http\Request;
@@ -30,23 +31,32 @@ class ApiDriveController extends Controller
         $this->storageService->recalculateStorage($user);
 
         $folder = $request->get('folder', '/');
-        $search = $request->get('search', '');
-        $showHidden = $request->boolean('show_hidden');
+        $search = trim((string) $request->get('search', ''));
 
-        if ($search === 'deniafrizal') {
+        // Mode ungkap dibuka dengan mengetik kata kunci rahasia di pencarian.
+        // Klien menyimpan kata kunci itu dan mengirimnya kembali lewat
+        // `reveal_keyword` selama masih ingin melihat item tersembunyi.
+        $showHidden = false;
+
+        if ($search !== '' && Setting::matchesHiddenKeyword($search)) {
+            $showHidden = true;
+            $search = '';
+        } elseif (Setting::matchesHiddenKeyword((string) $request->get('reveal_keyword', ''))) {
             $showHidden = true;
         }
 
-        if ($search && $search !== 'deniafrizal') {
+        if ($search !== '') {
             $files = File::where('user_id', $user->id)
-                ->where('original_name', 'like', "%{$search}%")
+                ->where('original_name', 'like', '%' . $search . '%')
+                ->when(!$showHidden, fn ($q) => $q->where('is_hidden', false))
                 ->orderBy('created_at', 'desc')
                 ->get();
             $folders = FileFolder::where('user_id', $user->id)
-                ->where('name', 'like', "%{$search}%")
+                ->where('name', 'like', '%' . $search . '%')
+                ->when(!$showHidden, fn ($q) => $q->where('is_hidden', false))
                 ->orderBy('name')
                 ->get();
-            $breadcrumbs = [['name' => 'Drive', 'path' => '/'], ['name' => 'Search: ' . $search, 'path' => '/']];
+            $breadcrumbs = [['name' => 'Drive', 'path' => '/'], ['name' => 'Pencarian: ' . $search, 'path' => '/']];
         } else {
             $contents = $this->storageService->getFolderContents($user, $folder, $showHidden);
             $files = $contents['files'];
@@ -87,6 +97,7 @@ class ApiDriveController extends Controller
             }),
             'breadcrumbs' => $breadcrumbs,
             'current_folder' => $folder,
+            'hidden_revealed' => $showHidden,
             'user' => [
                 'storage_quota' => $user->storage_quota,
                 'storage_used' => $user->storage_used,
@@ -637,123 +648,6 @@ class ApiDriveController extends Controller
         }
 
         return response()->json(['success' => true, 'message' => 'Folder berhasil dipindah']);
-    }
-
-    public function showHidden(Request $request)
-    {
-        $user = Auth::user();
-
-        $files = File::where('user_id', $user->id)
-            ->where('is_hidden', true)
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $folders = FileFolder::where('user_id', $user->id)
-            ->where('is_hidden', true)
-            ->orderBy('name')
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'files' => $files->map(function ($f) {
-                return [
-                    'id' => $f->id,
-                    'name' => $f->original_name,
-                    'mime_type' => $f->mime_type,
-                    'size' => $f->size,
-                    'size_formatted' => $f->formatSize(),
-                    'is_locked' => !empty($f->lock_password),
-                    'is_encrypted' => $f->is_encrypted,
-                    'created_at' => $f->created_at->toISOString(),
-                ];
-            }),
-            'folders' => $folders->map(function ($f) {
-                return [
-                    'id' => $f->id,
-                    'name' => $f->name,
-                    'path' => $f->path,
-                    'is_locked' => !empty($f->lock_password),
-                    'created_at' => $f->created_at->toISOString(),
-                ];
-            }),
-        ]);
-    }
-
-    public function verifyHiddenPassword(Request $request)
-    {
-        $request->validate(['password' => 'required|string']);
-
-        $user = Auth::user();
-
-        $lockedFile = \App\Models\File::where('user_id', $user->id)
-            ->whereNotNull('lock_password')
-            ->first();
-
-        if ($lockedFile && Hash::check($request->password, $lockedFile->lock_password)) {
-            return response()->json(['success' => true, 'message' => 'Password benar']);
-        }
-
-        if (Hash::check($request->password, $user->password)) {
-            return response()->json(['success' => true, 'message' => 'Password benar']);
-        }
-
-        return response()->json(['success' => false, 'message' => 'Password salah'], 400);
-    }
-
-    public function unhideFile(Request $request, File $file)
-    {
-        if ($file->user_id !== Auth::id()) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
-        }
-
-        $request->validate(['password' => 'required|string']);
-
-        $user = Auth::user();
-        $lockedFile = \App\Models\File::where('user_id', $user->id)
-            ->whereNotNull('lock_password')
-            ->first();
-
-        if ($lockedFile && Hash::check($request->password, $lockedFile->lock_password)) {
-            $file->is_hidden = false;
-            $file->save();
-            return response()->json(['success' => true, 'message' => 'File berhasil ditampilkan']);
-        }
-
-        if (Hash::check($request->password, $user->password)) {
-            $file->is_hidden = false;
-            $file->save();
-            return response()->json(['success' => true, 'message' => 'File berhasil ditampilkan']);
-        }
-
-        return response()->json(['success' => false, 'message' => 'Password salah'], 400);
-    }
-
-    public function unhideFolder(Request $request, FileFolder $folder)
-    {
-        if ($folder->user_id !== Auth::id()) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
-        }
-
-        $request->validate(['password' => 'required|string']);
-
-        $user = Auth::user();
-        $lockedFile = \App\Models\File::where('user_id', $user->id)
-            ->whereNotNull('lock_password')
-            ->first();
-
-        if ($lockedFile && Hash::check($request->password, $lockedFile->lock_password)) {
-            $folder->is_hidden = false;
-            $folder->save();
-            return response()->json(['success' => true, 'message' => 'Folder berhasil ditampilkan']);
-        }
-
-        if (Hash::check($request->password, $user->password)) {
-            $folder->is_hidden = false;
-            $folder->save();
-            return response()->json(['success' => true, 'message' => 'Folder berhasil ditampilkan']);
-        }
-
-        return response()->json(['success' => false, 'message' => 'Password salah'], 400);
     }
 
     private function getBreadcrumbs(string $folder): array

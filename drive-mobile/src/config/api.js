@@ -87,10 +87,12 @@ class ApiService {
   }
 
   // Drive
-  getDrive(folder = '/', search = '', showHidden = false) {
+  // revealKeyword: kata kunci rahasia yang dikirim ulang selama mode ungkap aktif,
+  // supaya file/folder tersembunyi tetap ikut ditampilkan saat pindah folder.
+  getDrive(folder = '/', search = '', revealKeyword = '') {
     let params = `folder=${encodeURIComponent(folder)}`;
     if (search) params += `&search=${encodeURIComponent(search)}`;
-    if (showHidden) params += `&show_hidden=true`;
+    if (revealKeyword) params += `&reveal_keyword=${encodeURIComponent(revealKeyword)}`;
     return this.request('GET', `/api/drive?${params}`);
   }
 
@@ -175,21 +177,16 @@ class ApiService {
     return this.request('POST', `/api/drive/folder/${folderId}/move`, { parent_path: parentPath });
   }
 
-  // Hidden
-  getHidden() {
-    return this.request('GET', '/api/drive/hidden');
+  // Hidden System (admin) — kata kunci rahasia untuk memunculkan item tersembunyi
+  getHiddenKeyword() {
+    return this.request('GET', '/api/admin/hidden-keyword');
   }
 
-  verifyHiddenPassword(password) {
-    return this.request('POST', '/api/drive/hidden/verify', { password });
-  }
-
-  unhideFile(fileId, password) {
-    return this.request('POST', `/api/drive/hidden/file/${fileId}/unhide`, { password });
-  }
-
-  unhideFolder(folderId, password) {
-    return this.request('POST', `/api/drive/hidden/folder/${folderId}/unhide`, { password });
+  updateHiddenKeyword(currentPassword, keyword) {
+    return this.request('PUT', '/api/admin/hidden-keyword', {
+      current_password: currentPassword,
+      keyword,
+    });
   }
 
   // Profile

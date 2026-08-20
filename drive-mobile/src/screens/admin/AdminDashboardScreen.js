@@ -78,6 +78,16 @@ export default function AdminDashboardScreen({ navigation }) {
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
               </TouchableOpacity>
+
+              <TouchableOpacity style={styles.actionCard}
+                onPress={() => navigation.navigate('HiddenSystem')}>
+                <Ionicons name="eye-off" size={22} color={Colors.gold} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.actionTitle}>Hidden System</Text>
+                  <Text style={styles.actionSubtitle}>Ganti kata kunci rahasia</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+              </TouchableOpacity>
             </View>
 
             {/* Recent Users */}

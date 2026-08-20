@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\File;
 use App\Models\FileFolder;
 use App\Models\FileShare;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\FileEncryptionService;
 use App\Services\StorageService;
@@ -270,59 +271,158 @@ class DriveFlowTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // Hidden system
+    // Hidden system (kata kunci rahasia)
     // ---------------------------------------------------------------
 
-    public function test_hidden_system_butuh_password_sebelum_menampilkan_daftar(): void
+    private function makeHiddenFile(User $user, string $name = 'file-tersembunyi.txt'): File
     {
-        $user = $this->makeUser();
-
-        File::create([
+        return File::create([
             'user_id' => $user->id,
             'name' => 'h.txt',
-            'original_name' => 'file-tersembunyi.txt',
+            'original_name' => $name,
             'mime_type' => 'text/plain',
             'size' => 5,
             'path' => $user->id . '/h.txt',
             'folder' => '/',
             'is_hidden' => true,
         ]);
+    }
 
-        $this->actingAs($user)->get('/drive/hidden')
+    public function test_item_tersembunyi_tidak_muncul_di_drive_maupun_pencarian(): void
+    {
+        $user = $this->makeUser();
+        $this->makeHiddenFile($user);
+
+        $this->actingAs($user)->get('/drive')
             ->assertOk()
-            ->assertSee('Buka Hidden System')
             ->assertDontSee('file-tersembunyi.txt');
 
-        $this->actingAs($user)->post('/drive/hidden/verify', ['password' => 'salah-total'])
-            ->assertSessionHasErrors('password');
+        $this->actingAs($user)->get('/drive?search=tersembunyi')
+            ->assertOk()
+            ->assertDontSee('file-tersembunyi.txt');
+    }
 
-        $this->actingAs($user)->post('/drive/hidden/verify', ['password' => 'password123'])
-            ->assertRedirect(route('drive.hidden'))
-            ->assertSessionHas('hidden_verified', true);
+    public function test_kata_kunci_bawaan_memunculkan_item_tersembunyi(): void
+    {
+        $user = $this->makeUser();
+        $this->makeHiddenFile($user);
 
-        $this->actingAs($user)->withSession(['hidden_verified' => true])->get('/drive/hidden')
+        // Mengetik kata kunci mengalihkan kembali ke drive dengan mode ungkap aktif.
+        $this->actingAs($user)->get('/drive?search=deniafrizal')
+            ->assertRedirect(route('drive.index', ['folder' => '/']))
+            ->assertSessionHas('hidden_revealed', true);
+
+        $this->actingAs($user)->withSession(['hidden_revealed' => true])->get('/drive')
             ->assertOk()
             ->assertSee('file-tersembunyi.txt')
-            ->assertSee('Tampilkan');
+            ->assertSee('Mode rahasia aktif');
+    }
+
+    public function test_mode_ungkap_bisa_ditutup_kembali(): void
+    {
+        $user = $this->makeUser();
+        $this->makeHiddenFile($user);
+
+        $this->actingAs($user)->withSession(['hidden_revealed' => true])
+            ->post('/drive/reveal/off', ['folder' => '/'])
+            ->assertRedirect()
+            ->assertSessionMissing('hidden_revealed');
+
+        $this->actingAs($user)->get('/drive')->assertOk()->assertDontSee('file-tersembunyi.txt');
+    }
+
+    public function test_kata_kunci_salah_diperlakukan_sebagai_pencarian_biasa(): void
+    {
+        $user = $this->makeUser();
+        $this->makeHiddenFile($user);
+
+        $this->actingAs($user)->get('/drive?search=deniafrizal2')
+            ->assertOk()
+            ->assertSessionMissing('hidden_revealed')
+            ->assertDontSee('file-tersembunyi.txt');
+    }
+
+    public function test_admin_bisa_mengganti_kata_kunci_rahasia(): void
+    {
+        $admin = $this->makeUser(['role' => 'admin']);
+
+        $this->actingAs($admin)->get('/admin/hidden-system')
+            ->assertOk()
+            ->assertSee('Kata Kunci Rahasia')
+            ->assertSee('Masih memakai kata kunci bawaan');
+
+        // Password admin salah -> ditolak
+        $this->actingAs($admin)->put('/admin/hidden-system', [
+            'current_password' => 'bukan-password',
+            'keyword' => 'kunciBaru123',
+            'keyword_confirmation' => 'kunciBaru123',
+        ])->assertSessionHasErrors('current_password');
+
+        // Konfirmasi tidak sama -> ditolak
+        $this->actingAs($admin)->put('/admin/hidden-system', [
+            'current_password' => 'password123',
+            'keyword' => 'kunciBaru123',
+            'keyword_confirmation' => 'beda',
+        ])->assertSessionHasErrors('keyword');
+
+        // Benar -> tersimpan
+        $this->actingAs($admin)->put('/admin/hidden-system', [
+            'current_password' => 'password123',
+            'keyword' => 'kunciBaru123',
+            'keyword_confirmation' => 'kunciBaru123',
+        ])->assertRedirect(route('admin.hidden'))->assertSessionHas('success');
+
+        $this->assertTrue(Setting::matchesHiddenKeyword('kunciBaru123'));
+        $this->assertFalse(Setting::matchesHiddenKeyword('deniafrizal'), 'Kata kunci bawaan harus berhenti berlaku');
+    }
+
+    public function test_kata_kunci_baru_dipakai_untuk_mengungkap(): void
+    {
+        Setting::setHiddenKeyword('bukaRahasia');
+
+        $user = $this->makeUser();
+        $this->makeHiddenFile($user);
+
+        // Kata kunci lama tidak lagi berlaku
+        $this->actingAs($user)->get('/drive?search=deniafrizal')
+            ->assertOk()
+            ->assertSessionMissing('hidden_revealed');
+
+        $this->actingAs($user)->get('/drive?search=bukaRahasia')
+            ->assertRedirect()
+            ->assertSessionHas('hidden_revealed', true);
+    }
+
+    public function test_kata_kunci_disimpan_sebagai_hash(): void
+    {
+        Setting::setHiddenKeyword('rahasiaKu99');
+
+        $tersimpan = Setting::get(Setting::HIDDEN_KEYWORD);
+
+        $this->assertNotSame('rahasiaKu99', $tersimpan);
+        $this->assertStringNotContainsString('rahasiaKu99', (string) $tersimpan);
+        $this->assertTrue(Setting::matchesHiddenKeyword('rahasiaKu99'));
+    }
+
+    public function test_menu_hidden_system_hanya_untuk_admin(): void
+    {
+        $user = $this->makeUser();
+
+        $this->actingAs($user)->get('/admin/hidden-system')->assertForbidden();
+        $this->actingAs($user)->put('/admin/hidden-system', [
+            'current_password' => 'password123',
+            'keyword' => 'apapun123',
+            'keyword_confirmation' => 'apapun123',
+        ])->assertForbidden();
     }
 
     public function test_tombol_tampilkan_mengembalikan_file_ke_drive(): void
     {
         $user = $this->makeUser();
-
-        $file = File::create([
-            'user_id' => $user->id,
-            'name' => 'h.txt',
-            'original_name' => 'h.txt',
-            'mime_type' => 'text/plain',
-            'size' => 5,
-            'path' => $user->id . '/h.txt',
-            'folder' => '/',
-            'is_hidden' => true,
-        ]);
+        $file = $this->makeHiddenFile($user, 'h.txt');
 
         $this->actingAs($user)
-            ->withSession(['hidden_verified' => true])
+            ->withSession(['hidden_revealed' => true])
             ->post('/drive/file/' . $file->id . '/toggle-visibility')
             ->assertRedirect(); // form biasa -> redirect, bukan JSON mentah
 
@@ -363,7 +463,7 @@ class DriveFlowTest extends TestCase
         $admin = $this->makeUser(['role' => 'admin']);
 
         $this->actingAs($admin)->get('/admin')->assertOk()->assertSee('Total User');
-        $this->actingAs($admin)->get('/admin/users')->assertOk()->assertSee('Semua User');
+        $this->actingAs($admin)->get('/admin/users')->assertOk()->assertSee('Manajemen User');
         $this->actingAs($admin)->get('/admin/users/' . $admin->id . '/edit')->assertOk();
     }
 
@@ -481,7 +581,7 @@ class DriveFlowTest extends TestCase
             $this->get($url)->assertOk();
         }
 
-        foreach (['/drive', '/drive/hidden', '/profile', '/notifications', '/admin', '/admin/users'] as $url) {
+        foreach (['/drive', '/profile', '/notifications', '/admin', '/admin/users', '/admin/hidden-system'] as $url) {
             $this->actingAs($admin)->get($url)->assertOk();
         }
     }

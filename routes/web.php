@@ -49,9 +49,7 @@ Route::prefix('drive')->middleware('auth')->group(function () {
     Route::post('/file/{file}/toggle-visibility', [DriveController::class, 'toggleVisibility'])->name('drive.toggle-visibility');
     Route::post('/folder/create', [DriveController::class, 'createFolder'])->name('drive.folder.create');
     Route::post('/folder/{folder}/toggle-visibility', [DriveController::class, 'toggleFolderVisibility'])->name('drive.folder.toggle-visibility');
-    Route::get('/hidden', [DriveController::class, 'showHidden'])->name('drive.hidden');
-    Route::post('/hidden/verify', [DriveController::class, 'verifyHiddenPassword'])->name('drive.hidden.verify');
-    Route::post('/hidden/lock', [DriveController::class, 'lockHidden'])->name('drive.hidden.lock');
+    Route::post('/reveal/off', [DriveController::class, 'hideRevealed'])->name('drive.reveal.off');
     Route::post('/file/{file}/share', [DriveController::class, 'share'])->name('drive.share');
     Route::post('/file/{file}/unshare', [DriveController::class, 'unshare'])->name('drive.unshare');
     Route::get('/file/{file}/info', [DriveController::class, 'info'])->name('drive.info');
@@ -73,6 +71,10 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
     Route::delete('/users/{user}', [AdminController::class, 'deleteUser'])->name('admin.users.delete');
     Route::post('/users/{user}/toggle-status', [AdminController::class, 'toggleUserStatus'])->name('admin.users.toggle-status');
     Route::post('/users/{user}/reset-storage', [AdminController::class, 'resetStorage'])->name('admin.users.reset-storage');
+
+    // Hidden System — pengaturan kata kunci rahasia untuk memunculkan file tersembunyi
+    Route::get('/hidden-system', [AdminController::class, 'hiddenSystem'])->name('admin.hidden');
+    Route::put('/hidden-system', [AdminController::class, 'updateHiddenKeyword'])->name('admin.hidden.update');
 });
 
 // Public share routes

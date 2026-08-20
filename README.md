@@ -8,12 +8,37 @@ Produksi: <https://drive.dekorasi.me>
 - Unggah, unduh, pindah (drag & drop), dan hapus file/folder
 - Tiga mode tampilan: Daftar, Ikon Kecil, Ikon Besar
 - Kunci file dengan password (file ikut dienkripsi AES-256-CBC)
-- Sembunyikan file/folder + **Hidden System** dengan gerbang password
+- Sembunyikan file/folder, dimunculkan lagi lewat **kata kunci rahasia**
+- Registrasi wajib diverifikasi admin sebelum akun bisa login
 - Berbagi file lewat link (opsional: password, masa berlaku, batas unduhan)
 - Pratinjau gambar, video, PDF, dan dokumen Office
 - Notifikasi in-app (kuota menipis, file dihapus, user baru mendaftar, dll.)
 - Panel admin: manajemen user, kuota, aktivasi akun
 - API untuk aplikasi mobile (`routes/api.php`, guard token `auth:api`)
+
+## Hidden System
+
+Menyembunyikan file/folder bekerja seperti ini:
+
+1. Klik kanan item di Drive &rarr; **Sembunyikan**. Item hilang dari daftar
+   maupun hasil pencarian biasa.
+2. Ketik **kata kunci rahasia** di kolom pencarian lalu tekan Enter. Mode rahasia
+   menyala dan item tersembunyi ikut ditampilkan sampai ditutup lewat tombol
+   silang pada banner, atau sampai logout.
+3. Selama mode rahasia menyala, klik kanan &rarr; **Tampilkan** mengembalikan
+   item ke Drive.
+
+Kata kunci diatur admin lewat menu **Admin &rarr; Hidden System**
+(`/admin/hidden-system`). Nilainya disimpan sebagai hash, jadi hanya bisa
+diganti, tidak bisa dilihat. Selama admin belum pernah menggantinya, kata kunci
+bawaan `deniafrizal` masih berlaku.
+
+## Verifikasi Akun
+
+Akun hasil registrasi dibuat dalam keadaan **non-aktif** dan belum bisa login.
+Admin memverifikasinya lewat kartu *Menunggu Verifikasi* di dashboard admin, atau
+lewat filter **Menunggu** pada halaman Manajemen User. Setelah diaktifkan, user
+menerima notifikasi bahwa akunnya sudah bisa dipakai.
 
 ## Kebutuhan Sistem
 
@@ -45,6 +70,7 @@ php artisan test
 
 1. Unggah dan ekstrak arsip perubahan ke root aplikasi.
 2. Jalankan migrasi bila ada perubahan struktur: `php artisan migrate --force`
+   (wajib untuk rilis ini &mdash; ada tabel baru `settings`)
 3. Bersihkan cache lama, lalu bangun ulang:
 
    ```bash
@@ -87,6 +113,7 @@ APP_URL=https://drive.dekorasi.me
 | `app/Services/FileEncryptionService.php` | Enkripsi/dekripsi file |
 | `resources/views/drive/` | Halaman drive + partial kartu file/folder |
 | `resources/views/layouts/app.blade.php` | Layout, sistem desain (navy + gold) |
+| `app/Models/Setting.php` | Pengaturan aplikasi, termasuk kata kunci rahasia |
 | `drive-mobile/` | Aplikasi React Native (Expo) |
 
 ## Lisensi

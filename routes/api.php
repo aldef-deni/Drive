@@ -42,12 +42,6 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/drive/file/{file}/move', [ApiDriveController::class, 'moveFile']);
     Route::post('/drive/folder/{folder}/move', [ApiDriveController::class, 'moveFolder']);
 
-    // Hidden system
-    Route::get('/drive/hidden', [ApiDriveController::class, 'showHidden']);
-    Route::post('/drive/hidden/verify', [ApiDriveController::class, 'verifyHiddenPassword']);
-    Route::post('/drive/hidden/file/{file}/unhide', [ApiDriveController::class, 'unhideFile']);
-    Route::post('/drive/hidden/folder/{folder}/unhide', [ApiDriveController::class, 'unhideFolder']);
-
     // Profile
     Route::get('/profile', [ApiProfileController::class, 'show']);
     Route::put('/profile', [ApiProfileController::class, 'update']);
@@ -68,6 +62,10 @@ Route::middleware('auth:api')->group(function () {
         Route::delete('/users/{user}', [ApiAdminController::class, 'deleteUser']);
         Route::post('/users/{user}/toggle-status', [ApiAdminController::class, 'toggleStatus']);
         Route::post('/users/{user}/reset-storage', [ApiAdminController::class, 'resetStorage']);
+
+        // Hidden System — kata kunci rahasia untuk memunculkan file tersembunyi
+        Route::get('/hidden-keyword', [ApiAdminController::class, 'hiddenKeyword']);
+        Route::put('/hidden-keyword', [ApiAdminController::class, 'updateHiddenKeyword']);
     });
 
     // Share download

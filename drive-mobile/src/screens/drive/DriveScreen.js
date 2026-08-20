@@ -45,6 +45,10 @@ export default function DriveScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('small'); // small, large, list
+  // Mode ungkap: kata kunci rahasia disimpan sementara agar item tersembunyi
+  // tetap tampil ketika berpindah folder.
+  const [revealKeyword, setRevealKeyword] = useState('');
+  const [hiddenRevealed, setHiddenRevealed] = useState(false);
 
   // Modals
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -57,12 +61,21 @@ export default function DriveScreen({ navigation }) {
   const [showPasswordModal, setShowPasswordModal] = useState(null);
   const [actionPassword, setActionPassword] = useState('');
 
-  const loadData = useCallback(async (folder = currentFolder, search = '') => {
+  const loadData = useCallback(async (folder = currentFolder, search = '', keyword = revealKeyword) => {
     try {
-      const res = await api.getDrive(folder, search);
+      const res = await api.getDrive(folder, search, keyword);
       setFolders(res.folders);
       setFiles(res.files);
       setBreadcrumbs(res.breadcrumbs);
+      setHiddenRevealed(!!res.hidden_revealed);
+
+      // Kata kunci benar: simpan supaya mode ungkap bertahan, dan kosongkan
+      // kolom pencarian karena kata kunci bukan kata pencarian biasa.
+      if (res.hidden_revealed && search) {
+        setRevealKeyword(search);
+        setSearchQuery('');
+      }
+
       if (res.user) refreshUser();
     } catch (error) {
       Alert.alert('Error', error.message || 'Gagal memuat data');
@@ -70,7 +83,7 @@ export default function DriveScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [currentFolder]);
+  }, [currentFolder, revealKeyword]);
 
   useEffect(() => { loadData(); }, []);
 
@@ -84,6 +97,12 @@ export default function DriveScreen({ navigation }) {
     if (text.length >= 2 || text.length === 0) {
       loadData(currentFolder, text);
     }
+  };
+
+  const stopReveal = () => {
+    setRevealKeyword('');
+    setHiddenRevealed(false);
+    loadData(currentFolder, '', '');
   };
 
   const navigateToFolder = (folder) => {
@@ -304,6 +323,19 @@ export default function DriveScreen({ navigation }) {
         ) : null}
       </View>
 
+      {/* Banner mode rahasia */}
+      {hiddenRevealed && (
+        <View style={styles.revealBanner}>
+          <Ionicons name="eye" size={16} color={Colors.gold} />
+          <Text style={styles.revealText}>
+            Mode rahasia aktif — item tersembunyi ikut ditampilkan
+          </Text>
+          <TouchableOpacity onPress={stopReveal} hitSlop={8}>
+            <Ionicons name="close" size={16} color={Colors.gold} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Breadcrumbs */}
       <FlatList
         horizontal
@@ -329,10 +361,6 @@ export default function DriveScreen({ navigation }) {
         <TouchableOpacity style={styles.actionBtn} onPress={() => setShowUpload(true)}>
           <Ionicons name="cloud-upload" size={18} color={Colors.gold} />
           <Text style={styles.actionText}>Upload</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Hidden')}>
-          <Ionicons name="eye-off" size={18} color={Colors.gold} />
-          <Text style={styles.actionText}>Hidden</Text>
         </TouchableOpacity>
         <View style={styles.viewToggle}>
           {['small', 'large', 'list'].map(mode => (
@@ -618,6 +646,15 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, height: 44,
   },
   searchInput: { flex: 1, color: Colors.textPrimary, fontSize: 14 },
+  revealBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: Colors.goldMuted,
+    borderWidth: 1, borderColor: Colors.gold,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: 12, paddingVertical: 10,
+    marginHorizontal: Spacing.lg, marginBottom: Spacing.sm,
+  },
+  revealText: { flex: 1, color: Colors.gold, fontSize: 12, fontWeight: '500' },
 
   breadcrumbContainer: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.sm },
   breadcrumb: { color: Colors.textMuted, fontSize: 13 },

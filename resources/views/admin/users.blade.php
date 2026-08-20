@@ -5,8 +5,25 @@
 
 @section('content')
 <div class="panel overflow-hidden">
-    <div class="p-4 md:p-6 border-b border-navy-600">
-        <h2 class="text-lg font-semibold text-white">Semua User</h2>
+    <div class="p-4 md:p-6 border-b border-navy-600 flex flex-col sm:flex-row sm:items-center gap-3">
+        <h2 class="text-lg font-semibold text-white flex-1">Manajemen User</h2>
+
+        {{-- Filter status --}}
+        <div class="flex items-center gap-1 p-1 bg-navy-900 rounded-xl self-start">
+            @foreach([
+                'all' => 'Semua',
+                'pending' => 'Menunggu',
+                'active' => 'Aktif',
+            ] as $key => $label)
+            <a href="{{ route('admin.users', $key === 'all' ? [] : ['filter' => $key]) }}"
+               class="px-3 py-1.5 rounded-lg text-xs font-medium transition {{ $filter === $key ? 'bg-gold-500 text-navy-900' : 'text-slate-400 hover:text-white' }}">
+                {{ $label }}
+                @if($key === 'pending' && $pendingCount > 0)
+                <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] {{ $filter === $key ? 'bg-navy-900/20' : 'bg-amber-500/20 text-amber-300' }}">{{ $pendingCount }}</span>
+                @endif
+            </a>
+            @endforeach
+        </div>
     </div>
     
     <div class="space-y-2 md:space-y-3 p-3 md:p-4">
@@ -27,7 +44,7 @@
                     <div class="flex items-center gap-1.5 md:gap-2 flex-wrap">
                         <p class="font-medium text-white text-sm md:text-base truncate">{{ $user->name }}</p>
                         <span class="px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium {{ $user->isAdmin() ? 'bg-purple-500/20 text-purple-300' : 'bg-navy-600 text-slate-300' }}">{{ ucfirst($user->role) }}</span>
-                        <span class="px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium {{ $user->is_active ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300' }}">{{ $user->is_active ? 'Aktif' : 'Nonaktif' }}</span>
+                        <span class="px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium {{ $user->is_active ? 'bg-green-500/20 text-green-300' : 'bg-amber-500/20 text-amber-300' }}">{{ $user->is_active ? 'Aktif' : 'Menunggu verifikasi' }}</span>
                     </div>
                     <p class="text-[10px] md:text-xs text-slate-400 mt-1 truncate">{{ $user->email }} · {{ $user->files_count }} file · Bergabung {{ $user->created_at->format('d M Y') }}</p>
                     <!-- Storage Bar -->
@@ -48,7 +65,7 @@
                     </a>
                     <form action="{{ route('admin.users.toggle-status', $user) }}" method="POST" class="inline">
                         @csrf
-                        <button type="submit" class="w-8 h-8 md:w-9 md:h-9 rounded-lg {{ $user->is_active ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400' : 'bg-green-500/20 hover:bg-green-500/30 text-green-400' }} flex items-center justify-center transition" title="{{ $user->is_active ? 'Nonaktifkan' : 'Aktifkan' }}">
+                        <button type="submit" class="w-8 h-8 md:w-9 md:h-9 rounded-lg {{ $user->is_active ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400' : 'bg-green-500/20 hover:bg-green-500/30 text-green-400' }} flex items-center justify-center transition" title="{{ $user->is_active ? 'Nonaktifkan' : 'Verifikasi & aktifkan' }}">
                             <i class="fas {{ $user->is_active ? 'fa-ban' : 'fa-check' }} text-sm"></i>
                         </button>
                     </form>
@@ -73,6 +90,15 @@
         @endforeach
     </div>
     
+    @if($users->count() === 0)
+    <div class="py-16 text-center">
+        <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-navy-700 flex items-center justify-center">
+            <i class="fas fa-users text-3xl text-slate-600"></i>
+        </div>
+        <p class="text-slate-400 text-sm">Tidak ada user pada filter ini.</p>
+    </div>
+    @endif
+
     <div class="p-4 border-t border-navy-600">
         {{ $users->links() }}
     </div>

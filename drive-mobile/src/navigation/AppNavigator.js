@@ -26,8 +26,8 @@ import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import UserManagementScreen from '../screens/admin/UserManagementScreen';
 import EditUserScreen from '../screens/admin/EditUserScreen';
 
-// Hidden
-import HiddenScreen from '../screens/drive/HiddenScreen';
+// Hidden System (admin)
+import HiddenSystemScreen from '../screens/admin/HiddenSystemScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -45,7 +45,6 @@ function DriveStackScreen() {
     >
       <DriveStack.Screen name="DriveMain" component={DriveScreen} options={{ headerShown: false }} />
       <DriveStack.Screen name="Folder" component={FolderScreen} options={{ title: 'Folder' }} />
-      <DriveStack.Screen name="Hidden" component={HiddenScreen} options={{ title: 'Hidden System' }} />
     </DriveStack.Navigator>
   );
 }
@@ -62,6 +61,7 @@ function AdminStackScreen() {
       <AdminStack.Screen name="AdminMain" component={AdminDashboardScreen} options={{ title: 'Admin Panel' }} />
       <AdminStack.Screen name="UserManagement" component={UserManagementScreen} options={{ title: 'User Management' }} />
       <AdminStack.Screen name="EditUser" component={EditUserScreen} options={{ title: 'Edit User' }} />
+      <AdminStack.Screen name="HiddenSystem" component={HiddenSystemScreen} options={{ title: 'Hidden System' }} />
     </AdminStack.Navigator>
   );
 }

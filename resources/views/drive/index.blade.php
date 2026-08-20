@@ -45,9 +45,19 @@
 
 @if($showHidden)
 <div class="mb-4 p-3 bg-gold-500/10 border border-gold-500/30 rounded-xl flex items-center gap-3">
-    <i class="fas fa-eye text-gold-500"></i>
-    <span class="text-sm text-gold-400 font-medium">Mode rahasia aktif — file tersembunyi ikut ditampilkan</span>
-    <a href="{{ route('drive.index') }}" aria-label="Keluar mode rahasia" class="ml-auto text-gold-500 hover:text-gold-400"><i class="fas fa-times"></i></a>
+    <i class="fas fa-eye text-gold-500 flex-shrink-0"></i>
+    <div class="flex-1 min-w-0">
+        <p class="text-sm text-gold-400 font-medium">Mode rahasia aktif</p>
+        <p class="text-xs text-gold-400/60">File dan folder tersembunyi ikut ditampilkan. Klik kanan &rarr; Tampilkan untuk mengembalikannya ke Drive.</p>
+    </div>
+    <form action="{{ route('drive.reveal.off') }}" method="POST" class="flex-shrink-0">
+        @csrf
+        <input type="hidden" name="folder" value="{{ $currentFolder }}">
+        <button type="submit" aria-label="Keluar mode rahasia" title="Sembunyikan lagi"
+            class="w-8 h-8 rounded-lg text-gold-500 hover:bg-gold-500/15 flex items-center justify-center transition">
+            <i class="fas fa-times"></i>
+        </button>
+    </form>
 </div>
 @endif
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\File;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -148,6 +149,43 @@ class ApiAdminController extends Controller
             'message' => 'Storage berhasil di-reset',
             'storage_used' => $user->storage_used,
             'storage_used_formatted' => User::formatStorageSize($user->storage_used),
+        ]);
+    }
+
+    /**
+     * Status kata kunci rahasia (nilainya sendiri tidak pernah dikirim).
+     */
+    public function hiddenKeyword()
+    {
+        return response()->json([
+            'success' => true,
+            'is_default' => Setting::get(Setting::HIDDEN_KEYWORD) === null,
+            'updated_at' => Setting::hiddenKeywordUpdatedAt()?->toISOString(),
+        ]);
+    }
+
+    /**
+     * Ganti kata kunci rahasia untuk memunculkan file/folder tersembunyi.
+     */
+    public function updateHiddenKeyword(Request $request)
+    {
+        $request->validate([
+            'current_password' => ['required', 'string'],
+            'keyword' => ['required', 'string', 'min:4', 'max:64', 'regex:/^\S+$/u'],
+        ]);
+
+        if (!Hash::check($request->current_password, $request->user()->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Password admin salah',
+            ], 400);
+        }
+
+        Setting::setHiddenKeyword($request->keyword);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kata kunci rahasia berhasil diperbarui',
         ]);
     }
 }

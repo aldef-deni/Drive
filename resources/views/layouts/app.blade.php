@@ -273,7 +273,7 @@
                         <i class="fas fa-users w-5"></i>
                         <span>Manajemen User</span>
                     </a>
-                    <a href="{{ route('drive.hidden') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('drive.hidden') ? 'active' : '' }}">
+                    <a href="{{ route('admin.hidden') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('admin.hidden') ? 'active' : '' }}">
                         <i class="fas fa-user-secret w-5"></i>
                         <span>Hidden System</span>
                     </a>

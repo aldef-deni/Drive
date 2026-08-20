@@ -5,7 +5,7 @@
 
 @section('content')
 <!-- Stats Cards -->
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-5 mb-6 md:mb-8">
     <div class="panel p-4 md:p-6 hover-lift">
         <div class="flex items-center gap-3 md:gap-4">
             <div class="w-10 h-10 md:w-14 md:h-14 rounded-xl bg-gold-500/15 flex items-center justify-center">
@@ -53,7 +53,64 @@
             </div>
         </div>
     </div>
+
+    <a href="{{ route('admin.users', ['filter' => 'pending']) }}"
+       class="panel p-4 md:p-6 hover-lift block {{ $stats['pending_users'] > 0 ? 'border-amber-500/50' : '' }}">
+        <div class="flex items-center gap-3 md:gap-4">
+            <div class="w-10 h-10 md:w-14 md:h-14 rounded-xl bg-amber-500/15 flex items-center justify-center">
+                <i class="fas fa-user-clock text-lg md:text-2xl text-amber-400"></i>
+            </div>
+            <div>
+                <p class="text-xs md:text-sm text-slate-400">Menunggu Verifikasi</p>
+                <p class="text-xl md:text-2xl font-bold {{ $stats['pending_users'] > 0 ? 'text-amber-300' : 'text-white' }}">{{ $stats['pending_users'] }}</p>
+            </div>
+        </div>
+    </a>
 </div>
+
+@if($pendingUsers->count() > 0)
+<!-- Antrean verifikasi akun baru -->
+<div class="panel overflow-hidden mb-6 md:mb-8 border-amber-500/40">
+    <div class="p-4 md:p-6 border-b border-navy-600 flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-user-clock text-amber-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+            <h2 class="text-base font-semibold text-white">Menunggu Verifikasi</h2>
+            <p class="text-xs text-slate-400">Akun baru belum bisa login sebelum Anda aktifkan.</p>
+        </div>
+    </div>
+
+    <div class="divide-y divide-navy-600/60">
+        @foreach($pendingUsers as $pending)
+        <div class="p-4 flex items-center gap-3 hover:bg-navy-700/50 transition">
+            <div class="w-10 h-10 rounded-full bg-amber-500/15 text-amber-300 font-bold flex items-center justify-center flex-shrink-0">
+                {{ strtoupper(substr($pending->name, 0, 1)) }}
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="font-medium text-white text-sm truncate">{{ $pending->name }}</p>
+                <p class="text-xs text-slate-400 truncate">{{ $pending->email }} &middot; daftar {{ $pending->created_at->diffForHumans() }}</p>
+            </div>
+            <form action="{{ route('admin.users.toggle-status', $pending) }}" method="POST" class="flex-shrink-0">
+                @csrf
+                <button type="submit" class="btn-primary px-4 py-2 rounded-xl text-xs whitespace-nowrap">
+                    <i class="fas fa-check mr-1.5"></i>Verifikasi
+                </button>
+            </form>
+            <form action="{{ route('admin.users.delete', $pending) }}" method="POST" class="flex-shrink-0"
+                  onsubmit="return confirm('Tolak dan hapus pendaftaran {{ $pending->name }}?')">
+                @csrf
+                @method('DELETE')
+                <button type="submit" title="Tolak pendaftaran"
+                    class="w-9 h-9 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 flex items-center justify-center transition">
+                    <i class="fas fa-xmark text-sm"></i>
+                </button>
+            </form>
+        </div>
+        @endforeach
+    </div>
+</div>
+@endif
 
 <!-- Users Table -->
 <div class="panel overflow-hidden">
@@ -149,8 +206,8 @@
                 </td>
                 <td class="px-6 py-4 text-sm text-slate-300">{{ $user->files_count }}</td>
                 <td class="px-6 py-4">
-                    <span class="px-3 py-1 rounded-full text-xs font-medium {{ $user->is_active ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300' }}">
-                        {{ $user->is_active ? 'Aktif' : 'Nonaktif' }}
+                    <span class="px-3 py-1 rounded-full text-xs font-medium {{ $user->is_active ? 'bg-green-500/20 text-green-300' : 'bg-amber-500/20 text-amber-300' }}">
+                        {{ $user->is_active ? 'Aktif' : 'Menunggu' }}
                     </span>
                 </td>
                 <td class="px-6 py-4 text-right">
@@ -162,7 +219,7 @@
                         <form action="{{ route('admin.users.toggle-status', $user) }}" method="POST" class="inline">
                             @csrf
                             <button type="submit" 
-                                class="w-9 h-9 rounded-lg {{ $user->is_active ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400' : 'bg-green-500/20 hover:bg-green-500/30 text-green-400' }} flex items-center justify-center transition" title="{{ $user->is_active ? 'Nonaktifkan' : 'Aktifkan' }}">
+                                class="w-9 h-9 rounded-lg {{ $user->is_active ? 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400' : 'bg-green-500/20 hover:bg-green-500/30 text-green-400' }} flex items-center justify-center transition" title="{{ $user->is_active ? 'Nonaktifkan' : 'Verifikasi & aktifkan' }}">
                                 <i class="fas {{ $user->is_active ? 'fa-ban' : 'fa-check' }}"></i>
                             </button>
                         </form>
