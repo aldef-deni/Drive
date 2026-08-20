@@ -181,7 +181,7 @@
 @endif
 
 <p class="mt-10 text-center text-[11px] text-slate-600">
-    Klik kanan pada item untuk menu aksi &middot; dobel klik untuk membuka &middot; seret untuk memindahkan
+    Klik untuk membuka pratinjau &middot; klik kanan untuk menu aksi &middot; seret untuk memindahkan
 </p>
 @endsection
 
@@ -386,8 +386,9 @@
                 <p id="imagePreviewTitle" class="text-white text-sm font-medium truncate"></p>
                 <a id="imageDownloadBtn" href="#" class="text-gold-500 hover:text-gold-400 text-sm flex-shrink-0"><i class="fas fa-download mr-1"></i>Unduh</a>
             </div>
-            <div class="flex items-center justify-center p-4 bg-navy-950/60">
-                <img id="previewImage" src="" alt="" class="max-w-full max-h-[70vh] object-contain rounded-lg">
+            <div class="relative flex items-center justify-center p-4 bg-navy-950/60 min-h-[220px]">
+                <p id="imagePreviewStatus" class="hidden absolute text-sm text-slate-400"></p>
+                <img id="previewImage" src="" alt="" class="max-w-full max-h-[70vh] object-contain rounded-lg transition-opacity duration-200">
             </div>
         </div>
     </div>
@@ -398,8 +399,9 @@
     <div class="relative w-full max-w-4xl">
         <button onclick="closeVideoPreview()" aria-label="Tutup" class="absolute -top-11 right-0 text-white/70 hover:text-white text-2xl"><i class="fas fa-times"></i></button>
         <div class="panel overflow-hidden">
-            <div class="p-3 border-b border-navy-600">
+            <div class="p-3 border-b border-navy-600 flex items-center justify-between gap-3">
                 <p id="videoPreviewTitle" class="text-white text-sm font-medium truncate"></p>
+                <a id="videoDownloadBtn" href="#" class="text-gold-500 hover:text-gold-400 text-sm flex-shrink-0"><i class="fas fa-download mr-1"></i>Unduh</a>
             </div>
             <div class="p-2 bg-navy-950/60">
                 <video id="videoPlayer" controls class="w-full rounded-lg" style="max-height:70vh">
@@ -977,13 +979,37 @@
         }
 
         if (IMAGE_EXT.includes(ext)) {
+            const img = document.getElementById('previewImage');
+            const status = document.getElementById('imagePreviewStatus');
+
             document.getElementById('imagePreviewTitle').textContent = item.name;
-            document.getElementById('previewImage').src = downloadUrl;
             document.getElementById('imageDownloadBtn').href = downloadUrl;
+
+            img.classList.add('opacity-0');
+            status.textContent = 'Memuat gambar...';
+            status.classList.remove('hidden');
+
+            img.onload = () => {
+                img.classList.remove('opacity-0');
+                status.classList.add('hidden');
+            };
+            img.onerror = () => {
+                status.textContent = 'Gambar gagal dimuat.';
+            };
+
+            img.src = downloadUrl;
             document.getElementById('imagePreviewModal').classList.remove('hidden');
         } else if (VIDEO_EXT.includes(ext)) {
+            const source = document.getElementById('videoSource');
+
             document.getElementById('videoPreviewTitle').textContent = item.name;
-            document.getElementById('videoSource').src = downloadUrl;
+            document.getElementById('videoDownloadBtn').href = downloadUrl;
+
+            // Tipe MIME harus sesuai ekstensi; dipatok video/mp4 membuat berkas
+            // webm dan ogg ditolak browser.
+            source.type = ext === 'webm' ? 'video/webm' : ext === 'ogg' ? 'video/ogg' : 'video/mp4';
+            source.src = downloadUrl;
+
             document.getElementById('videoPlayer').load();
             document.getElementById('videoPreviewModal').classList.remove('hidden');
         } else if (OFFICE_EXT.includes(ext)) {
@@ -1045,15 +1071,12 @@
 
             el.addEventListener('contextmenu', e => showContextMenu(e, item()));
 
-            // Folder: satu klik untuk masuk. File: dobel klik untuk pratinjau.
+            // Satu klik: folder dibuka, file langsung dipratinjau bila jenisnya
+            // didukung (gambar, video, dokumen). Selain itu file diunduh.
             el.addEventListener('click', () => {
                 const data = item();
                 if (data.kind === 'folder') window.location = data.url;
-            });
-
-            el.addEventListener('dblclick', () => {
-                const data = item();
-                if (data.kind === 'file') openFilePreview(data);
+                else openFilePreview(data);
             });
 
             el.addEventListener('dragstart', e => {
