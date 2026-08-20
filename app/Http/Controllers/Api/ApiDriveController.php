@@ -108,11 +108,28 @@ class ApiDriveController extends Controller
 
     public function upload(Request $request)
     {
+        // Bila ukuran kiriman melampaui post_max_size, PHP mengosongkan seluruh
+        // request sehingga validasi hanya berkata "file wajib diisi" — pesan yang
+        // menyesatkan. Deteksi kondisi itu lebih dulu.
+        if ($this->melebihiBatasKiriman($request)) {
+            $batas = ini_get('post_max_size');
+
+            return response()->json([
+                'success' => false,
+                'message' => "File terlalu besar untuk dikirim. Batas server saat ini {$batas}.",
+            ], 413);
+        }
+
         $request->validate([
             'file' => 'required|file|max:102400',
             'folder' => 'nullable|string',
             'is_locked' => 'nullable|boolean',
             'lock_password' => 'nullable|required_if:is_locked,1|string|min:4',
+        ], [
+            'file.required' => 'Tidak ada file yang dipilih.',
+            'file.max' => 'Ukuran file melebihi 100 MB.',
+            'lock_password.required_if' => 'Password kunci wajib diisi.',
+            'lock_password.min' => 'Password kunci minimal 4 karakter.',
         ]);
 
         try {
@@ -648,6 +665,37 @@ class ApiDriveController extends Controller
         }
 
         return response()->json(['success' => true, 'message' => 'Folder berhasil dipindah']);
+    }
+
+    /**
+     * Apakah ukuran kiriman melebihi post_max_size milik PHP?
+     */
+    private function melebihiBatasKiriman(Request $request): bool
+    {
+        $batas = $this->keBytes((string) ini_get('post_max_size'));
+        $dikirim = (int) $request->server('CONTENT_LENGTH', 0);
+
+        return $batas > 0 && $dikirim > $batas;
+    }
+
+    /**
+     * Ubah notasi ukuran PHP ("8M", "512K") menjadi bytes.
+     */
+    private function keBytes(string $nilai): int
+    {
+        $nilai = trim($nilai);
+        if ($nilai === '') {
+            return 0;
+        }
+
+        $angka = (int) $nilai;
+
+        return match (strtolower(substr($nilai, -1))) {
+            'g' => $angka * 1024 * 1024 * 1024,
+            'm' => $angka * 1024 * 1024,
+            'k' => $angka * 1024,
+            default => $angka,
+        };
     }
 
     private function getBreadcrumbs(string $folder): array

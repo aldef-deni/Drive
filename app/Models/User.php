@@ -9,6 +9,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
 {
+    /**
+     * Kuota penyimpanan bawaan untuk setiap akun baru: 1 GB.
+     * Ditaruh di satu tempat supaya web dan API tidak pernah berbeda lagi.
+     */
+    public const DEFAULT_STORAGE_QUOTA = 1073741824;
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 

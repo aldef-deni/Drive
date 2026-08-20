@@ -42,11 +42,16 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            report($e);
+            // Kode pendek supaya kejadian di perangkat pengguna tetap bisa
+            // ditelusuri di storage/logs/laravel.log tanpa membocorkan apa pun.
+            $ref = strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
+
+            report(new RuntimeException("[REF {$ref}] {$e->getMessage()}", 0, $e));
 
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan di server. Silakan hubungi admin.',
+                'message' => "Terjadi kesalahan di server. Sebutkan kode {$ref} saat menghubungi admin.",
+                'reference' => $ref,
             ], 500);
         });
     })->create();

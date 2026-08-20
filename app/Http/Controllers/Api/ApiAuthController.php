@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -52,6 +53,7 @@ class ApiAuthController extends Controller
                 'avatar' => $user->avatarUrl(),
                 'storage_quota' => $user->storage_quota,
                 'storage_used' => $user->storage_used,
+                'storage_percentage' => $user->getStoragePercentage(),
                 'is_active' => $user->is_active,
             ],
         ]);
@@ -62,7 +64,7 @@ class ApiAuthController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
-            'password' => 'required|string|min:6|confirmed',
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
         $user = User::create([
@@ -70,11 +72,25 @@ class ApiAuthController extends Controller
             'email' => $request->email,
             'password' => $request->password,
             'role' => 'user',
-            'storage_quota' => 10737418240, // 10GB
+            'storage_quota' => User::DEFAULT_STORAGE_QUOTA,
             'storage_used' => 0,
             'is_active' => false,
             'api_token' => Str::random(64),
         ]);
+
+        // Beri tahu admin, sama seperti registrasi lewat web. Tanpa ini
+        // pendaftar dari aplikasi bisa menunggu tanpa ada yang tahu.
+        foreach (User::where('role', 'admin')->where('is_active', true)->get() as $admin) {
+            Notification::create([
+                'user_id' => $admin->id,
+                'type'    => 'new_registration',
+                'title'   => 'Pengguna Baru Mendaftar',
+                'message' => $user->name . ' (' . $user->email . ') mendaftar lewat aplikasi dan menunggu aktivasi.',
+                'icon'    => 'fas fa-user-plus',
+                'color'   => 'blue',
+                'url'     => '/admin/users',
+            ]);
+        }
 
         return response()->json([
             'success' => true,
@@ -107,6 +123,7 @@ class ApiAuthController extends Controller
                 'avatar' => $user->avatarUrl(),
                 'storage_quota' => $user->storage_quota,
                 'storage_used' => $user->storage_used,
+                'storage_percentage' => $user->getStoragePercentage(),
                 'is_active' => $user->is_active,
                 'unread_notifications' => $user->unreadNotificationsCount(),
             ],

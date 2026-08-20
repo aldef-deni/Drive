@@ -24,9 +24,21 @@ class StorageService
      */
     public function storeFile(UploadedFile $file, User $user, string $folder = '/', bool $isLocked = false, ?string $password = null): File
     {
+        // Berkas sempat gagal diterima PHP (ukuran melebihi batas, tmp dir hilang,
+        // disk penuh). Tanpa pemeriksaan ini kegagalan muncul sebagai error samar
+        // di langkah berikutnya.
+        if (!$file->isValid()) {
+            throw new \RuntimeException($this->uploadErrorMessage($file->getError()));
+        }
+
         // Check storage quota
         if ($user->storage_used + $file->getSize() > $user->storage_quota) {
-            throw new \RuntimeException('Storage quota exceeded');
+            $sisa = $this->formatBytes(max(0, $user->storage_quota - $user->storage_used));
+
+            throw new \RuntimeException(
+                'Kuota penyimpanan tidak cukup. Sisa kuota Anda ' . $sisa .
+                ', sedangkan file ini berukuran ' . $this->formatBytes($file->getSize()) . '.'
+            );
         }
 
         // Capture metadata BEFORE move() — after move the UploadedFile still
@@ -43,12 +55,25 @@ class StorageService
         
         // Ensure directory exists
         $directory = dirname($fullPath);
-        if (!is_dir($directory)) {
-            mkdir($directory, 0755, true);
+        if (!is_dir($directory) && !@mkdir($directory, 0755, true) && !is_dir($directory)) {
+            throw new \RuntimeException(
+                'Server tidak bisa membuat folder penyimpanan. Pastikan folder ' .
+                'storage/app/drive dapat ditulis (izin 755 dan pemiliknya benar).'
+            );
+        }
+
+        if (!is_writable($directory)) {
+            throw new \RuntimeException(
+                'Folder penyimpanan di server tidak dapat ditulis. Perbaiki izin folder storage/app/drive.'
+            );
         }
 
         // Store file to storage/app/drive/
-        $file->move($directory, basename($relativePath));
+        try {
+            $file->move($directory, basename($relativePath));
+        } catch (\Throwable $e) {
+            throw new \RuntimeException('Gagal menyimpan file di server: ' . $e->getMessage());
+        }
 
         // Lock = encrypt + lock_password  (plain upload = no encryption)
         $finalPath   = $relativePath;
@@ -82,6 +107,31 @@ class StorageService
         $user->increment('storage_used', $size);
 
         return $fileRecord;
+    }
+
+    /**
+     * Terjemahkan kode error unggahan PHP menjadi kalimat yang bisa ditindaklanjuti.
+     *
+     * @see https://www.php.net/manual/en/features.file-upload.errors.php
+     */
+    private function uploadErrorMessage(int $code): string
+    {
+        return match ($code) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE =>
+                'Ukuran file melebihi batas yang diizinkan server (upload_max_filesize / post_max_size di PHP).',
+            UPLOAD_ERR_PARTIAL =>
+                'Pengiriman file terputus di tengah jalan. Coba ulangi dengan koneksi yang stabil.',
+            UPLOAD_ERR_NO_FILE =>
+                'Tidak ada file yang terkirim.',
+            UPLOAD_ERR_NO_TMP_DIR =>
+                'Folder sementara PHP tidak ditemukan di server. Periksa pengaturan upload_tmp_dir pada hosting.',
+            UPLOAD_ERR_CANT_WRITE =>
+                'Server gagal menulis file ke disk. Kemungkinan kuota hosting penuh atau izin folder salah.',
+            UPLOAD_ERR_EXTENSION =>
+                'Sebuah ekstensi PHP menolak unggahan ini.',
+            default =>
+                'File gagal diterima server (kode ' . $code . ').',
+        };
     }
 
     /**

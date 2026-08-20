@@ -569,6 +569,153 @@ class DriveFlowTest extends TestCase
         return require database_path('migrations/2026_08_20_000001_ensure_mobile_api_schema.php');
     }
 
+    public function test_akun_baru_mendapat_kuota_satu_giga(): void
+    {
+        $satuGiga = 1073741824;
+        $this->assertSame($satuGiga, User::DEFAULT_STORAGE_QUOTA);
+
+        // Lewat web
+        $this->post('/register', [
+            'name' => 'Web Baru',
+            'email' => 'webbaru@dekorasi.test',
+            'password' => 'rahasia12345',
+            'password_confirmation' => 'rahasia12345',
+        ]);
+        $this->assertSame($satuGiga, User::where('email', 'webbaru@dekorasi.test')->value('storage_quota'));
+
+        // Lewat aplikasi
+        $this->withHeaders(['Accept' => 'application/json'])->post('/api/register', [
+            'name' => 'Mobile Baru',
+            'email' => 'mobilebaru@dekorasi.test',
+            'password' => 'rahasia12345',
+            'password_confirmation' => 'rahasia12345',
+        ])->assertOk();
+        $this->assertSame($satuGiga, User::where('email', 'mobilebaru@dekorasi.test')->value('storage_quota'));
+    }
+
+    public function test_registrasi_lewat_aplikasi_memberi_tahu_admin(): void
+    {
+        $admin = $this->makeUser(['role' => 'admin']);
+
+        $this->withHeaders(['Accept' => 'application/json'])->post('/api/register', [
+            'name' => 'Aldef',
+            'email' => 'aldef2@dekorasi.test',
+            'password' => 'rahasia12345',
+            'password_confirmation' => 'rahasia12345',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $admin->id,
+            'type' => 'new_registration',
+        ]);
+    }
+
+    public function test_unggah_melebihi_kuota_menjelaskan_sisa_kuota(): void
+    {
+        // Kuota 1 MB, file 2 MB.
+        $user = $this->makeUser(['storage_quota' => 1048576]);
+
+        $response = $this->actingAs($user)->postJson('/drive/upload', [
+            'file' => UploadedFile::fake()->create('besar.pdf', 2048, 'application/pdf'),
+            'folder' => '/',
+        ]);
+
+        $response->assertStatus(400);
+
+        // Pesan harus menyebut angka, bukan sekadar "gagal".
+        $pesan = $response->json('message');
+        $this->assertStringContainsString('Kuota penyimpanan tidak cukup', $pesan);
+        $this->assertStringContainsString('MB', $pesan);
+    }
+
+    public function test_pesan_error_upload_memakai_bahasa_indonesia(): void
+    {
+        $user = $this->makeUser();
+
+        $this->actingAs($user)->postJson('/drive/upload', ['folder' => '/'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.file.0', 'Tidak ada file yang dipilih.');
+    }
+
+    public function test_error_server_menyertakan_kode_referensi(): void
+    {
+        Route::middleware('api')->get('/api/uji-referensi', function () {
+            throw new \RuntimeException('kegagalan internal');
+        });
+
+        $response = $this->withHeaders(['Accept' => 'application/json'])
+            ->get('/api/uji-referensi')
+            ->assertStatus(500);
+
+        $ref = $response->json('reference');
+        $this->assertNotEmpty($ref, 'Balasan harus memuat kode referensi untuk penelusuran log');
+        $this->assertStringContainsString($ref, $response->json('message'));
+        $this->assertStringNotContainsString('kegagalan internal', $response->getContent());
+    }
+
+    public function test_alur_lengkap_daftar_verifikasi_login_dan_buka_drive(): void
+    {
+        $admin = $this->makeUser(['role' => 'admin']);
+
+        // 1. Daftar lewat aplikasi
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/register', [
+                'name' => 'Aldef',
+                'email' => 'aldef@dekorasi.test',
+                'password' => 'rahasia12345',
+                'password_confirmation' => 'rahasia12345',
+            ])->assertOk()->assertJson(['success' => true]);
+
+        $baru = User::where('email', 'aldef@dekorasi.test')->firstOrFail();
+        $this->assertFalse($baru->is_active, 'Akun baru harus menunggu verifikasi');
+
+        // 2. Belum diverifikasi -> login ditolak dengan pesan yang jelas
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/login', ['email' => $baru->email, 'password' => 'rahasia12345'])
+            ->assertStatus(403);
+
+        // 3. Admin memverifikasi
+        $this->actingAs($admin)->post('/admin/users/' . $baru->id . '/toggle-status');
+        $this->assertTrue($baru->fresh()->is_active);
+
+        // 4. Login berhasil dan mengembalikan token
+        $login = $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/login', ['email' => $baru->email, 'password' => 'rahasia12345'])
+            ->assertOk()->json();
+
+        $this->assertNotEmpty($login['token'] ?? null, 'Login harus mengembalikan token');
+
+        // 5. Membuka Drive — inilah panggilan yang gagal di perangkat
+        $this->withHeaders([
+            'Authorization' => 'Bearer ' . $login['token'],
+            'Accept' => 'application/json',
+        ])->get('/api/drive')
+            ->assertOk()
+            ->assertJson(['success' => true]);
+    }
+
+    public function test_login_dan_me_mengirim_persentase_penyimpanan(): void
+    {
+        $user = $this->makeUser(['storage_quota' => 1073741824, 'storage_used' => 536870912]);
+
+        $login = $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/login', ['email' => $user->email, 'password' => 'password123'])
+            ->assertOk()->json();
+
+        // Aplikasi menampilkan bar penyimpanan dari nilai ini; tanpa itu
+        // selalu terbaca 0%.
+        $this->assertArrayHasKey('storage_percentage', $login['user']);
+        $this->assertEqualsWithDelta(50.0, $login['user']['storage_percentage'], 0.1);
+
+        $me = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $login['token'],
+            'Accept' => 'application/json',
+        ])->get('/api/me')->assertOk()->json();
+
+        $this->assertArrayHasKey('storage_percentage', $me['user']);
+        $this->assertEqualsWithDelta(50.0, $me['user']['storage_percentage'], 0.1);
+    }
+
     public function test_migrasi_perbaikan_memulihkan_skema_yang_hilang(): void
     {
         $user = $this->makeUser();
@@ -640,9 +787,10 @@ class DriveFlowTest extends TestCase
         $response = $this->withHeaders(['Accept' => 'application/json'])
             ->get('/api/uji-ledakan');
 
-        $response->assertStatus(500)
-            ->assertJson(['success' => false])
-            ->assertJsonPath('message', 'Terjadi kesalahan di server. Silakan hubungi admin.');
+        $response->assertStatus(500)->assertJson(['success' => false]);
+
+        // Pesan boleh memuat kode referensi, tapi tidak boleh memuat detail teknis.
+        $this->assertStringContainsString('Terjadi kesalahan di server', $response->json('message'));
 
         $body = $response->getContent();
         $this->assertStringNotContainsString('SQLSTATE', $body);
