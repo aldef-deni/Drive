@@ -12,6 +12,7 @@ use App\Services\StorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class DriveFlowTest extends TestCase
@@ -556,6 +557,38 @@ class DriveFlowTest extends TestCase
         $kedua = $user->fresh()->avatarUrl();
 
         $this->assertNotSame($pertama, $kedua, 'URL harus berubah supaya cache browser tidak menahan avatar lama');
+    }
+
+    public function test_api_tidak_membocorkan_detail_internal_saat_error(): void
+    {
+        // Regresi: saat APP_DEBUG menyala, kegagalan query membuat Laravel
+        // mengirim SQL lengkap beserta nilainya ke aplikasi mobile — termasuk
+        // hash password pendaftar. Balasan /api/* harus selalu seragam.
+        config(['app.debug' => true]);
+
+        Route::middleware('api')->get('/api/uji-ledakan', function () {
+            throw new \RuntimeException('SQLSTATE[42S22]: Column not found: rahasia-bocor');
+        });
+
+        $response = $this->withHeaders(['Accept' => 'application/json'])
+            ->get('/api/uji-ledakan');
+
+        $response->assertStatus(500)
+            ->assertJson(['success' => false])
+            ->assertJsonPath('message', 'Terjadi kesalahan di server. Silakan hubungi admin.');
+
+        $body = $response->getContent();
+        $this->assertStringNotContainsString('SQLSTATE', $body);
+        $this->assertStringNotContainsString('rahasia-bocor', $body);
+    }
+
+    public function test_error_validasi_api_tetap_informatif(): void
+    {
+        // Penyeragaman tidak boleh ikut menelan pesan yang memang untuk pengguna.
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/login', ['email' => 'bukan-email'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('email');
     }
 
     public function test_route_api_hidup_tanpa_sanctum(): void

@@ -1,8 +1,12 @@
 <?php
 
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -22,5 +26,27 @@ return Application::configure(basePath: dirname(__DIR__))
         // error 500. Autentikasi API memakai guard token bawaan (auth:api).
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Klien API (aplikasi mobile) tidak boleh menerima detail internal.
+        // Saat APP_DEBUG menyala, pesan bawaan Laravel memuat query SQL lengkap
+        // beserta nilainya — pernah membuat hash password pendaftar tampil di
+        // layar aplikasi. Balasan untuk /api/* selalu diseragamkan.
+        $exceptions->render(function (Throwable $e, Request $request) {
+            if (!$request->is('api/*')) {
+                return null; // biarkan halaman web memakai penanganan bawaan
+            }
+
+            // Kesalahan yang memang ditujukan ke pengguna tetap apa adanya.
+            if ($e instanceof ValidationException
+                || $e instanceof AuthenticationException
+                || $e instanceof HttpExceptionInterface) {
+                return null;
+            }
+
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan di server. Silakan hubungi admin.',
+            ], 500);
+        });
     })->create();
