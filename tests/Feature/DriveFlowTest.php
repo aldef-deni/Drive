@@ -12,7 +12,9 @@ use App\Services\StorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class DriveFlowTest extends TestCase
@@ -557,6 +559,71 @@ class DriveFlowTest extends TestCase
         $kedua = $user->fresh()->avatarUrl();
 
         $this->assertNotSame($pertama, $kedua, 'URL harus berubah supaya cache browser tidak menahan avatar lama');
+    }
+
+    /**
+     * Ambil objek migrasi perbaikan skema dari filenya.
+     */
+    private function migrasiPerbaikan(): object
+    {
+        return require database_path('migrations/2026_08_20_000001_ensure_mobile_api_schema.php');
+    }
+
+    public function test_migrasi_perbaikan_memulihkan_skema_yang_hilang(): void
+    {
+        $user = $this->makeUser();
+
+        // Tiru kondisi server: kolom api_token dan tabel settings tidak ada,
+        // padahal tabel migrations menganggap semuanya sudah dijalankan.
+        Schema::table('users', fn (Blueprint $t) => $t->dropColumn('api_token'));
+        Schema::dropIfExists('settings');
+
+        $this->assertFalse(Schema::hasColumn('users', 'api_token'));
+        $this->assertFalse(Schema::hasTable('settings'));
+
+        $this->migrasiPerbaikan()->up();
+
+        $this->assertTrue(Schema::hasColumn('users', 'api_token'), 'Kolom api_token harus dipulihkan');
+        $this->assertTrue(Schema::hasTable('settings'), 'Tabel settings harus dipulihkan');
+
+        // Akun lama ikut mendapat token, kalau tidak login mobile tetap gagal.
+        $this->assertNotNull($user->fresh()->api_token);
+    }
+
+    public function test_migrasi_perbaikan_aman_dijalankan_berulang(): void
+    {
+        $migrasi = $this->migrasiPerbaikan();
+
+        // Skema sudah lengkap — memanggilnya lagi tidak boleh melempar error.
+        $migrasi->up();
+        $migrasi->up();
+
+        $this->assertTrue(Schema::hasColumn('users', 'api_token'));
+        $this->assertTrue(Schema::hasTable('settings'));
+    }
+
+    public function test_registrasi_mobile_jalan_setelah_skema_dipulihkan(): void
+    {
+        Schema::table('users', fn (Blueprint $t) => $t->dropColumn('api_token'));
+
+        // Sebelum diperbaiki: registrasi lewat API gagal (kondisi yang dilaporkan).
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/register', [
+                'name' => 'Aldef',
+                'email' => 'aldef@dekorasi.test',
+                'password' => 'rahasia12345',
+                'password_confirmation' => 'rahasia12345',
+            ])->assertStatus(500);
+
+        $this->migrasiPerbaikan()->up();
+
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/register', [
+                'name' => 'Aldef',
+                'email' => 'aldef@dekorasi.test',
+                'password' => 'rahasia12345',
+                'password_confirmation' => 'rahasia12345',
+            ])->assertOk()->assertJson(['success' => true]);
     }
 
     public function test_api_tidak_membocorkan_detail_internal_saat_error(): void
