@@ -7,8 +7,11 @@ use Illuminate\Support\Facades\Storage;
 
 class FileEncryptionService
 {
-    /** Penanda format terenkripsi versi 2 (IV disimpan dalam hex). */
+    /** Penanda format versi 2 (IV dalam hex, tanpa tanda tangan). */
     private const PREFIX = 'v2:';
+
+    /** Penanda format versi 3 (IV dalam hex + HMAC atas ciphertext). */
+    private const PREFIX_V3 = 'v3:';
 
     /**
      * Encrypt file content.
@@ -23,8 +26,14 @@ class FileEncryptionService
             throw new \RuntimeException('Failed to encrypt file');
         }
 
+        // Tanda tangan HMAC atas ciphertext. Tanpa ini, password yang salah punya
+        // peluang kecil menghasilkan padding yang kebetulan sah sehingga
+        // openssl_decrypt mengembalikan data rusak alih-alih menolak — pengguna
+        // menerima file korup tanpa peringatan apa pun.
+        $mac = hash_hmac('sha256', $iv . $encrypted, $key);
+
         // IV di-hex-kan supaya pemisah '::' tidak pernah bentrok dengan byte acak IV.
-        return base64_encode(self::PREFIX . bin2hex($iv) . '::' . $encrypted);
+        return base64_encode(self::PREFIX_V3 . bin2hex($iv) . ':' . $mac . '::' . $encrypted);
     }
 
     /**
@@ -45,15 +54,29 @@ class FileEncryptionService
             throw new \RuntimeException('Invalid encrypted content format');
         }
 
-        // Format baru: "v2:<iv hex>::<ciphertext>". Format lama menyimpan IV mentah
-        // pada bagian pertama — tetap didukung agar file lama bisa dibuka.
-        if (str_starts_with($parts[0], self::PREFIX)) {
+        $encrypted = $parts[1];
+
+        // v3: "v3:<iv hex>:<hmac>::<ciphertext>" — password salah selalu tertangkap.
+        // v2: "v2:<iv hex>::<ciphertext>" dan format awal dengan IV mentah tetap
+        // didukung supaya file lama masih bisa dibuka.
+        if (str_starts_with($parts[0], self::PREFIX_V3)) {
+            $head = explode(':', substr($parts[0], strlen(self::PREFIX_V3)), 2);
+
+            if (count($head) !== 2) {
+                throw new \RuntimeException('Invalid encrypted content format');
+            }
+
+            $iv = hex2bin($head[0]);
+            $mac = hash_hmac('sha256', $iv . $encrypted, $key);
+
+            if (!hash_equals($mac, $head[1])) {
+                throw new \RuntimeException('Failed to decrypt file - invalid password');
+            }
+        } elseif (str_starts_with($parts[0], self::PREFIX)) {
             $iv = hex2bin(substr($parts[0], strlen(self::PREFIX)));
         } else {
             $iv = $parts[0];
         }
-
-        $encrypted = $parts[1];
         
         $decrypted = openssl_decrypt($encrypted, 'AES-256-CBC', $key, 0, $iv);
 

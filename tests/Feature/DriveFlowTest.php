@@ -194,6 +194,44 @@ class DriveFlowTest extends TestCase
         $service->decrypt($terenkripsi, 'password-salah');
     }
 
+    public function test_password_salah_selalu_ditolak_bukan_menghasilkan_file_rusak(): void
+    {
+        $service = app(FileEncryptionService::class);
+        $isi = 'Dokumen rahasia Dekorasi Drive';
+        $terenkripsi = $service->encrypt($isi, 'kunci-benar');
+
+        // Regresi: tanpa tanda tangan HMAC, dekripsi AES-CBC dengan kunci salah
+        // punya peluang sekitar 1/256 menghasilkan padding yang kebetulan sah,
+        // sehingga mengembalikan data rusak alih-alih menolak. 400 percobaan
+        // membuat kebocoran semacam itu hampir pasti tertangkap.
+        for ($i = 0; $i < 400; $i++) {
+            try {
+                $service->decrypt($terenkripsi, 'salah-' . $i);
+                $this->fail('Password salah ke-' . $i . ' seharusnya ditolak');
+            } catch (\RuntimeException $e) {
+                // benar: ditolak
+            }
+        }
+
+        $this->assertSame($isi, $service->decrypt($terenkripsi, 'kunci-benar'));
+    }
+
+    public function test_file_terenkripsi_format_lama_tetap_bisa_dibuka(): void
+    {
+        $service = app(FileEncryptionService::class);
+        $isi = 'Berkas lama sebelum format v3';
+        $password = 'kunci-lama';
+
+        // Bentuk ulang payload format v2 (tanpa HMAC) persis seperti yang
+        // tersimpan di server sebelum perubahan ini.
+        $kunci = hash('sha256', $password . (string) config('app.key'), true);
+        $iv = openssl_random_pseudo_bytes(16);
+        $cipher = openssl_encrypt($isi, 'AES-256-CBC', $kunci, 0, $iv);
+        $lama = base64_encode('v2:' . bin2hex($iv) . '::' . $cipher);
+
+        $this->assertSame($isi, $service->decrypt($lama, $password));
+    }
+
     public function test_pencarian_tidak_membocorkan_file_tersembunyi(): void
     {
         $user = $this->makeUser();
@@ -567,6 +605,35 @@ class DriveFlowTest extends TestCase
     private function migrasiPerbaikan(): object
     {
         return require database_path('migrations/2026_08_20_000001_ensure_mobile_api_schema.php');
+    }
+
+    public function test_pemeriksa_deployment_lolos_saat_semua_lengkap(): void
+    {
+        $this->artisan('drive:check')
+            ->expectsOutputToContain('Guard "api" terpasang')
+            ->expectsOutputToContain('Kolom users.api_token ada')
+            ->expectsOutputToContain('Tabel settings ada')
+            ->assertSuccessful();
+    }
+
+    public function test_pemeriksa_deployment_menangkap_guard_api_yang_hilang(): void
+    {
+        // Inilah kondisi server yang membuat aplikasi menampilkan "Gagal memuat":
+        // config/auth.php tanpa guard api, sehingga auth:api melempar error 500.
+        config(['auth.guards.api' => null]);
+
+        $this->artisan('drive:check')
+            ->expectsOutputToContain('Guard "api" tidak ada di config/auth.php')
+            ->assertFailed();
+    }
+
+    public function test_pemeriksa_deployment_menangkap_kolom_yang_hilang(): void
+    {
+        Schema::table('users', fn (Blueprint $t) => $t->dropColumn('api_token'));
+
+        $this->artisan('drive:check')
+            ->expectsOutputToContain('Kolom users.api_token belum ada')
+            ->assertFailed();
     }
 
     public function test_akun_baru_mendapat_kuota_satu_giga(): void
