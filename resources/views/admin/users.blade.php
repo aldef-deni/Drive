@@ -32,8 +32,8 @@
             <div class="flex items-center gap-3 md:gap-4">
                 <!-- Avatar -->
                 <div class="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden bg-gradient-to-br from-gold-500 to-gold-600 flex items-center justify-center text-navy-900 font-bold flex-shrink-0">
-                    @if($user->avatar)
-                        <img src="{{ asset('storage/avatars/' . $user->avatar) }}" alt="{{ $user->name }}" class="w-full h-full object-cover">
+                    @if($avatarUrl = $user->avatarUrl())
+                        <img src="{{ $avatarUrl }}" alt="" class="w-full h-full object-cover">
                     @else
                         {{ strtoupper(substr($user->name, 0, 1)) }}
                     @endif

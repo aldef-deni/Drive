@@ -88,6 +88,45 @@ class User extends Authenticatable
     }
 
     /**
+     * Lokasi fisik file avatar, atau null bila tidak ada.
+     *
+     * Nilai kolom `avatar` pernah disimpan dalam dua bentuk: nama file polos
+     * (dari web) dan "avatars/nama.png" (dari API). basename() menyeragamkan
+     * keduanya sehingga data lama tetap terbaca.
+     */
+    public function avatarPath(): ?string
+    {
+        if (!$this->avatar) {
+            return null;
+        }
+
+        $filename = basename(str_replace(chr(92), '/', $this->avatar));
+        $path = storage_path('app/public/avatars/' . $filename);
+
+        return is_file($path) ? $path : null;
+    }
+
+    /**
+     * URL avatar yang disajikan lewat route sendiri.
+     *
+     * Sengaja tidak memakai asset('storage/...') karena itu bergantung pada
+     * symlink public/storage yang kerap tidak aktif di hosting cPanel.
+     * Mengembalikan null bila file tidak ada, sehingga tampilan jatuh ke inisial
+     * nama alih-alih gambar rusak.
+     */
+    public function avatarUrl(): ?string
+    {
+        if (!$this->avatarPath()) {
+            return null;
+        }
+
+        return route('avatar.show', [
+            'user' => $this->id,
+            'v' => $this->updated_at?->timestamp ?? 0,
+        ]);
+    }
+
+    /**
      * Check if user is admin.
      */
     public function isAdmin(): bool

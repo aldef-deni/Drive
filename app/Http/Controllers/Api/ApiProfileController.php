@@ -20,7 +20,7 @@ class ApiProfileController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
-                'avatar' => $user->avatar ? Storage::url($user->avatar) : null,
+                'avatar' => $user->avatarUrl(),
                 'storage_quota' => $user->storage_quota,
                 'storage_used' => $user->storage_used,
                 'storage_percentage' => $user->getStoragePercentage(),
@@ -91,24 +91,36 @@ class ApiProfileController extends Controller
     public function updateAvatar(Request $request)
     {
         $request->validate([
-            'avatar' => 'required|image|max:2048',
+            'avatar' => 'required|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
         ]);
 
         $user = $request->user();
 
-        // Delete old avatar
-        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
-            Storage::disk('public')->delete($user->avatar);
+        // Konvensi penyimpanan harus sama persis dengan versi web: file fisik di
+        // storage/app/public/avatars dan kolom `avatar` berisi nama file polos.
+        // Sebelumnya API menyimpan "avatars/xxx.png" sehingga avatar yang
+        // diunggah dari mobile tidak pernah tampil di web, dan sebaliknya.
+        if ($old = $user->avatarPath()) {
+            @unlink($old);
         }
 
-        $path = $request->file('avatar')->store('avatars', 'public');
-        $user->avatar = $path;
+        $file = $request->file('avatar');
+        $filename = $user->id . '_' . time() . '.' . strtolower($file->getClientOriginalExtension());
+
+        $directory = storage_path('app/public/avatars');
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $file->move($directory, $filename);
+
+        $user->avatar = $filename;
         $user->save();
 
         return response()->json([
             'success' => true,
             'message' => 'Avatar berhasil diubah',
-            'avatar_url' => Storage::url($path),
+            'avatar_url' => $user->fresh()->avatarUrl(),
         ]);
     }
 }

@@ -304,8 +304,8 @@
             <div class="p-4 border-t border-white/10">
                 <a href="{{ route('profile.show') }}" class="flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 transition group">
                     <div class="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-gold-500 to-gold-600 flex items-center justify-center font-bold text-navy-900 flex-shrink-0">
-                        @if(auth()->user()->avatar)
-                            <img src="{{ asset('storage/avatars/' . auth()->user()->avatar) }}" alt="Avatar" class="w-full h-full object-cover">
+                        @if($avatarUrl = auth()->user()->avatarUrl())
+                            <img src="{{ $avatarUrl }}" alt="" class="w-full h-full object-cover">
                         @else
                             {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
                         @endif

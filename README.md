@@ -53,7 +53,7 @@ composer install
 cp .env.example .env
 php artisan key:generate
 php artisan migrate --seed          # membuat akun admin@dekorasi.me / password
-php artisan storage:link            # WAJIB, agar avatar bisa tampil
+php artisan storage:link            # opsional; avatar tidak bergantung padanya
 php artisan serve
 ```
 
@@ -82,8 +82,8 @@ php artisan test
    php artisan view:cache
    ```
 
-4. Pastikan symlink storage aktif: `php artisan storage:link`
-5. Pastikan folder berikut bisa ditulis: `storage/`, `bootstrap/cache/`
+4. Pastikan folder berikut bisa ditulis: `storage/`, `bootstrap/cache/`
+   (avatar disimpan di `storage/app/public/avatars`)
 
 ### Pengaturan `.env` untuk produksi
 
@@ -103,6 +103,19 @@ APP_URL=https://drive.dekorasi.me
 > Kunci enkripsi file diturunkan dari `APP_KEY`, sehingga mengubahnya membuat
 > file terkunci yang lama tidak bisa dibuka lagi.
 
+## Catatan Teknis
+
+**Avatar tidak memakai `public/storage`.** File disimpan di
+`storage/app/public/avatars` dan disajikan lewat route `GET /avatar/{user}`.
+Alasannya, symlink `public/storage` kerap tidak aktif di hosting cPanel sehingga
+gambar profil gagal dimuat. `App\Models\User::avatarUrl()` adalah satu-satunya
+tempat URL avatar dibentuk — pakai itu, jangan `asset('storage/...')`.
+
+**Jangan panggil `$middleware->statefulApi()`** di `bootstrap/app.php`. Fungsi itu
+memasang middleware milik Laravel Sanctum, sementara paket Sanctum tidak dipasang
+di proyek ini, sehingga seluruh route `/api/*` akan membalas error 500.
+Autentikasi API memakai guard token bawaan (`auth:api`).
+
 ## Struktur Singkat
 
 | Path | Isi |
@@ -114,6 +127,7 @@ APP_URL=https://drive.dekorasi.me
 | `resources/views/drive/` | Halaman drive + partial kartu file/folder |
 | `resources/views/layouts/app.blade.php` | Layout, sistem desain (navy + gold) |
 | `app/Models/Setting.php` | Pengaturan aplikasi, termasuk kata kunci rahasia |
+| `app/Http/Controllers/ProfileController.php` | Profil, avatar, dan penyajian file avatar |
 | `drive-mobile/` | Aplikasi React Native (Expo) |
 
 ## Lisensi

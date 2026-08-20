@@ -128,6 +128,23 @@ class ProfileController extends Controller
     }
 
     /**
+     * Sajikan file avatar.
+     *
+     * Publik seperti halnya file di public/storage sebelumnya, tetapi tidak
+     * bergantung pada symlink sehingga tetap jalan di cPanel.
+     */
+    public function avatar(\App\Models\User $user)
+    {
+        $path = $user->avatarPath();
+
+        abort_if($path === null, 404);
+
+        return response()->file($path, [
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
+
+    /**
      * Hapus avatar.
      */
     public function destroyAvatar()

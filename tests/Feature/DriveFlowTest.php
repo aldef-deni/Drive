@@ -471,6 +471,112 @@ class DriveFlowTest extends TestCase
     // Profil & notifikasi
     // ---------------------------------------------------------------
 
+    public function test_avatar_yang_diunggah_benar_benar_tersaji(): void
+    {
+        $user = $this->makeUser();
+
+        $this->actingAs($user)->post('/profile/avatar', [
+            'avatar' => UploadedFile::fake()->image('foto-saya.jpg', 120, 120),
+        ])->assertRedirect();
+
+        $user->refresh();
+        $this->assertNotNull($user->avatar);
+        $this->assertNotNull($user->avatarPath(), 'File avatar harus ada di disk');
+        $this->assertNotNull($user->avatarUrl());
+
+        // Regresi: URL avatar dulu memakai asset('storage/...') yang bergantung
+        // pada symlink public/storage, sehingga gambar tidak tampil di cPanel.
+        $this->assertStringNotContainsString('/storage/', $user->avatarUrl());
+
+        $response = $this->actingAs($user)->get($user->avatarUrl());
+        $response->assertOk();
+        $this->assertStringStartsWith('image/', (string) $response->headers->get('Content-Type'));
+    }
+
+    public function test_halaman_menampilkan_gambar_avatar_bukan_teks_pengganti(): void
+    {
+        $user = $this->makeUser();
+
+        $this->actingAs($user)->post('/profile/avatar', [
+            'avatar' => UploadedFile::fake()->image('avatar.png'),
+        ])->assertRedirect();
+
+        $url = $user->fresh()->avatarUrl();
+
+        $this->actingAs($user)->get('/profile')->assertOk()->assertSee($url, false);
+        $this->actingAs($user)->get('/drive')->assertOk()->assertSee($url, false);
+    }
+
+    public function test_avatar_hilang_dari_disk_jatuh_ke_inisial_nama(): void
+    {
+        $user = $this->makeUser(['name' => 'Budi Santoso', 'avatar' => 'tidak-ada.png']);
+
+        $this->assertNull($user->avatarPath());
+        $this->assertNull($user->avatarUrl(), 'Tanpa file, jangan hasilkan URL yang pasti rusak');
+
+        // Tampilan jatuh ke inisial, bukan tag <img> yang pasti gagal dimuat.
+        $html = $this->actingAs($user)->get('/profile')->assertOk()->getContent();
+        $this->assertStringNotContainsString('/avatar/' . $user->id, $html);
+        $this->assertMatchesRegularExpression('/>\s*B\s*</', $html);
+    }
+
+    public function test_avatar_dari_api_dan_web_memakai_konvensi_yang_sama(): void
+    {
+        $user = $this->makeUser();
+        $user->api_token = 'token-uji-avatar';
+        $user->save();
+
+        $this->withHeaders(['Authorization' => 'Bearer token-uji-avatar', 'Accept' => 'application/json'])
+            ->post('/api/profile/avatar', [
+                'avatar' => UploadedFile::fake()->image('mobile.jpg'),
+            ])->assertOk()->assertJson(['success' => true]);
+
+        $user->refresh();
+
+        // Regresi: API dulu menyimpan "avatars/xxx.jpg" sementara web menyimpan
+        // nama file polos, sehingga avatar dari mobile tidak tampil di web.
+        $this->assertStringNotContainsString('/', $user->avatar);
+        $this->assertNotNull($user->avatarPath());
+
+        // Dan hasilnya benar-benar terlihat di halaman web.
+        $this->actingAs($user)->get('/profile')->assertOk()->assertSee($user->avatarUrl(), false);
+    }
+
+    public function test_url_avatar_berubah_setelah_avatar_diganti(): void
+    {
+        $user = $this->makeUser();
+
+        $this->actingAs($user)->post('/profile/avatar', ['avatar' => UploadedFile::fake()->image('satu.png')]);
+        $pertama = $user->fresh()->avatarUrl();
+
+        // Mundurkan updated_at agar perubahan timestamp terlihat.
+        $user->fresh()->forceFill(['updated_at' => now()->subMinutes(5)])->saveQuietly();
+
+        $this->actingAs($user)->post('/profile/avatar', ['avatar' => UploadedFile::fake()->image('dua.png')]);
+        $kedua = $user->fresh()->avatarUrl();
+
+        $this->assertNotSame($pertama, $kedua, 'URL harus berubah supaya cache browser tidak menahan avatar lama');
+    }
+
+    public function test_route_api_hidup_tanpa_sanctum(): void
+    {
+        $user = $this->makeUser();
+        $user->api_token = 'token-uji-api';
+        $user->save();
+
+        // Regresi: bootstrap/app.php pernah memanggil statefulApi() yang
+        // membutuhkan Laravel Sanctum. Karena paketnya tidak terpasang, seluruh
+        // route /api/* membalas error 500.
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->get('/api/drive')
+            ->assertStatus(401);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer token-uji-api',
+            'Accept' => 'application/json',
+        ])->get('/api/me')->assertOk()->assertJson(['success' => true]);
+    }
+
     public function test_hapus_avatar_berfungsi(): void
     {
         $user = $this->makeUser(['avatar' => 'contoh.png']);

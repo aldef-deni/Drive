@@ -77,6 +77,9 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
     Route::put('/hidden-system', [AdminController::class, 'updateHiddenKeyword'])->name('admin.hidden.update');
 });
 
+// Avatar (publik, tidak bergantung pada symlink public/storage)
+Route::get('/avatar/{user}', [ProfileController::class, 'avatar'])->name('avatar.show');
+
 // Public share routes
 Route::get('/share/{token}', [ShareController::class, 'show'])->name('share.show');
 Route::post('/share/{token}/download', [ShareController::class, 'download'])->name('share.download');

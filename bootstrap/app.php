@@ -15,7 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
         ]);
-        $middleware->statefulApi();
+
+        // Catatan: JANGAN panggil $middleware->statefulApi() di sini.
+        // Itu memasang middleware milik Laravel Sanctum, sementara paket Sanctum
+        // tidak dipasang di proyek ini — akibatnya seluruh route /api/* balas
+        // error 500. Autentikasi API memakai guard token bawaan (auth:api).
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

@@ -93,8 +93,9 @@ export default function ProfileScreen() {
       <View style={styles.avatarSection}>
         <TouchableOpacity onPress={handlePickAvatar} style={styles.avatarContainer}>
           {user?.avatar ? (
-            <Image source={{ uri: user.avatar.startsWith('http') ? user.avatar : `${api.baseUrl}/storage/${user.avatar}` }}
-              style={styles.avatar} />
+            // API sudah mengirim URL lengkap; jangan lagi merakit path /storage
+            // yang bergantung pada symlink public/storage di server.
+            <Image source={{ uri: user.avatar }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder]}>
               <Text style={styles.avatarText}>{(user?.name || 'U')[0].toUpperCase()}</Text>

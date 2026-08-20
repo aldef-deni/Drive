@@ -9,8 +9,8 @@
         <div class="p-4 md:p-6 border-b border-navy-600">
             <div class="flex items-center gap-3 md:gap-4">
                 <div class="w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden bg-gradient-to-br from-gold-500 to-gold-600 flex items-center justify-center text-navy-900 text-xl md:text-2xl font-bold">
-                    @if($user->avatar)
-                        <img src="{{ asset('storage/avatars/' . $user->avatar) }}" alt="{{ $user->name }}" class="w-full h-full object-cover">
+                    @if($avatarUrl = $user->avatarUrl())
+                        <img src="{{ $avatarUrl }}" alt="" class="w-full h-full object-cover">
                     @else
                         {{ strtoupper(substr($user->name, 0, 1)) }}
                     @endif

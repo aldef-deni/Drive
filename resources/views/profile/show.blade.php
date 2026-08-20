@@ -16,8 +16,8 @@
                 <!-- Current Avatar -->
                 <div class="relative group">
                     <div class="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-gold-500 to-gold-600 flex items-center justify-center text-navy-900 text-3xl font-bold">
-                        @if($user->avatar)
-                            <img src="{{ asset('storage/avatars/' . $user->avatar) }}" alt="{{ $user->name }}" class="w-full h-full object-cover">
+                        @if($avatarUrl = $user->avatarUrl())
+                            <img src="{{ $avatarUrl }}" alt="" class="w-full h-full object-cover">
                         @else
                             {{ strtoupper(substr($user->name, 0, 1)) }}
                         @endif
