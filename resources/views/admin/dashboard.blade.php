@@ -37,7 +37,7 @@
             </div>
             <div>
                 <p class="text-xs md:text-sm text-slate-400">Storage</p>
-                <p class="text-xl md:text-2xl font-bold text-white">{{ \\App\\Models\\User::formatStorageSize($stats['total_storage_used']) }}</p>
+                <p class="text-xl md:text-2xl font-bold text-white">{{ \App\Models\User::formatStorageSize($stats['total_storage_used']) }}</p>
             </div>
         </div>
     </div>
