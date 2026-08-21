@@ -37,9 +37,19 @@ class Company extends Model
 
     protected static function booted(): void
     {
-        // Slug dibuat otomatis dan dijaga unik, termasuk saat nama diubah.
         static::saving(function (Company $company) {
-            if (empty($company->slug) || $company->isDirty('name')) {
+            // Slug kosong selalu dibuatkan dari nama.
+            if (empty($company->slug)) {
+                $company->slug = static::uniqueSlug($company->name, $company->id);
+
+                return;
+            }
+
+            // Nama berubah tanpa slug diisi manual -> slug ikut menyesuaikan.
+            // Slug yang ditentukan eksplisit tidak boleh ditimpa; itu membuat
+            // pemanggil seperti firstOrCreate(['slug' => ...]) tidak pernah
+            // menemukan barisnya lagi.
+            if ($company->isDirty('name') && !$company->isDirty('slug')) {
                 $company->slug = static::uniqueSlug($company->name, $company->id);
             }
         });

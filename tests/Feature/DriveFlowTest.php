@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\File;
 use App\Models\FileFolder;
 use App\Models\FileShare;
@@ -44,9 +45,19 @@ class DriveFlowTest extends TestCase
         @rmdir($dir);
     }
 
+    /** Perusahaan uji, dibuat sekali lalu dipakai ulang. */
+    private function company(): Company
+    {
+        return Company::firstOrCreate(
+            ['slug' => 'perusahaan-uji'],
+            ['name' => 'Perusahaan Uji', 'default_quota' => User::DEFAULT_STORAGE_QUOTA, 'is_active' => true]
+        );
+    }
+
     private function makeUser(array $attributes = []): User
     {
         return User::create(array_merge([
+            'company_id' => $this->company()->id,
             'name' => 'Pengguna Uji',
             'email' => 'user' . uniqid() . '@dekorasi.test',
             'password' => Hash::make('password123'),
@@ -66,6 +77,7 @@ class DriveFlowTest extends TestCase
         $this->post('/register', [
             'name' => 'Budi',
             'email' => 'budi@dekorasi.test',
+            'company_id' => $this->company()->id,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertRedirect(route('register'));
@@ -645,6 +657,8 @@ class DriveFlowTest extends TestCase
         $this->post('/register', [
             'name' => 'Web Baru',
             'email' => 'webbaru@dekorasi.test',
+            'company_id' => $this->company()->id,
+            'company_id' => $this->company()->id,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ]);
@@ -654,6 +668,7 @@ class DriveFlowTest extends TestCase
         $this->withHeaders(['Accept' => 'application/json'])->post('/api/register', [
             'name' => 'Mobile Baru',
             'email' => 'mobilebaru@dekorasi.test',
+            'company_id' => $this->company()->id,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertOk();
@@ -667,6 +682,7 @@ class DriveFlowTest extends TestCase
         $this->withHeaders(['Accept' => 'application/json'])->post('/api/register', [
             'name' => 'Aldef',
             'email' => 'aldef2@dekorasi.test',
+            'company_id' => $this->company()->id,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertOk();
@@ -729,6 +745,7 @@ class DriveFlowTest extends TestCase
             ->post('/api/register', [
                 'name' => 'Aldef',
                 'email' => 'aldef@dekorasi.test',
+                'company_id' => $this->company()->id,
                 'password' => 'rahasia12345',
                 'password_confirmation' => 'rahasia12345',
             ])->assertOk()->assertJson(['success' => true]);
@@ -825,6 +842,7 @@ class DriveFlowTest extends TestCase
             ->post('/api/register', [
                 'name' => 'Aldef',
                 'email' => 'aldef@dekorasi.test',
+                'company_id' => $this->company()->id,
                 'password' => 'rahasia12345',
                 'password_confirmation' => 'rahasia12345',
             ])->assertStatus(500);
@@ -835,6 +853,7 @@ class DriveFlowTest extends TestCase
             ->post('/api/register', [
                 'name' => 'Aldef',
                 'email' => 'aldef@dekorasi.test',
+                'company_id' => $this->company()->id,
                 'password' => 'rahasia12345',
                 'password_confirmation' => 'rahasia12345',
             ])->assertOk()->assertJson(['success' => true]);

@@ -11,15 +11,39 @@ use Illuminate\Support\Facades\Hash;
 
 class ApiAdminController extends Controller
 {
+    /**
+     * Query pengguna yang sudah dibatasi ke perusahaan pelaku.
+     * Superadministrator memperoleh seluruh data tanpa penyaringan.
+     */
+    private function lingkup()
+    {
+        return User::query()->visibleTo(request()->user());
+    }
+
+    /**
+     * Tolak bila akun berada di luar wewenang pelaku.
+     */
+    private function pastikanBerhak(User $user)
+    {
+        if (request()->user()->canManage($user)) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Akses ditolak. Akun ini berada di luar perusahaan Anda.',
+        ], 403);
+    }
+
     public function dashboard()
     {
-        $totalUsers = User::count();
-        $activeUsers = User::where('is_active', true)->count();
-        $pendingUsers = User::where('is_active', false)->count();
-        $totalFiles = File::count();
-        $totalStorage = User::sum('storage_used');
+        $totalUsers = $this->lingkup()->count();
+        $activeUsers = $this->lingkup()->where('is_active', true)->count();
+        $pendingUsers = $this->lingkup()->where('is_active', false)->count();
+        $totalFiles = File::whereIn('user_id', $this->lingkup()->select('id'))->count();
+        $totalStorage = $this->lingkup()->sum('storage_used');
 
-        $recentUsers = User::orderBy('created_at', 'desc')->limit(5)->get()->map(function ($u) {
+        $recentUsers = $this->lingkup()->orderBy('created_at', 'desc')->limit(5)->get()->map(function ($u) {
             return [
                 'id' => $u->id,
                 'name' => $u->name,
@@ -45,7 +69,7 @@ class ApiAdminController extends Controller
 
     public function users()
     {
-        $users = User::orderBy('created_at', 'desc')->get()->map(function ($u) {
+        $users = $this->lingkup()->orderBy('created_at', 'desc')->get()->map(function ($u) {
             return [
                 'id' => $u->id,
                 'name' => $u->name,
@@ -70,6 +94,10 @@ class ApiAdminController extends Controller
 
     public function getUser(User $user)
     {
+        if ($tolak = $this->pastikanBerhak($user)) {
+            return $tolak;
+        }
+
         return response()->json([
             'success' => true,
             'user' => [
@@ -90,6 +118,10 @@ class ApiAdminController extends Controller
 
     public function updateUser(Request $request, User $user)
     {
+        if ($tolak = $this->pastikanBerhak($user)) {
+            return $tolak;
+        }
+
         $request->validate([
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|unique:users,email,' . $user->id,
@@ -113,6 +145,10 @@ class ApiAdminController extends Controller
 
     public function deleteUser(User $user)
     {
+        if ($tolak = $this->pastikanBerhak($user)) {
+            return $tolak;
+        }
+
         if ($user->role === 'admin') {
             return response()->json(['success' => false, 'message' => 'Tidak bisa menghapus admin'], 400);
         }
@@ -127,6 +163,10 @@ class ApiAdminController extends Controller
 
     public function toggleStatus(User $user)
     {
+        if ($tolak = $this->pastikanBerhak($user)) {
+            return $tolak;
+        }
+
         $user->is_active = !$user->is_active;
         $user->save();
 
@@ -141,6 +181,10 @@ class ApiAdminController extends Controller
 
     public function resetStorage(User $user)
     {
+        if ($tolak = $this->pastikanBerhak($user)) {
+            return $tolak;
+        }
+
         $user->storage_used = File::where('user_id', $user->id)->sum('size');
         $user->save();
 

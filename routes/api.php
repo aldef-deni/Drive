@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ApiShareController;
 // Public API routes
 Route::post('/login', [ApiAuthController::class, 'login']);
 Route::post('/register', [ApiAuthController::class, 'register']);
+Route::get('/companies', [ApiAuthController::class, 'companies']);
 
 // Share routes (public)
 Route::get('/share/{token}', [ApiShareController::class, 'show']);

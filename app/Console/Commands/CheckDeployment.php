@@ -32,6 +32,7 @@ class CheckDeployment extends Command
 
         $this->periksaGuardApi();
         $this->periksaSkema();
+        $this->periksaMultiPerusahaan();
         $this->periksaPenyimpanan();
         $this->periksaPhp();
         $this->periksaKeamanan();
@@ -98,6 +99,58 @@ class CheckDeployment extends Command
             }
         } catch (\Throwable $e) {
             $this->gagal('Tidak bisa memeriksa database', $e->getMessage());
+        }
+    }
+
+    private function periksaMultiPerusahaan(): void
+    {
+        try {
+            if (!Schema::hasTable('companies')) {
+                $this->gagal(
+                    'Tabel companies belum ada',
+                    'Menu Perusahaan dan pemisahan data tidak akan bekerja. Jalankan: php artisan migrate --force'
+                );
+
+                return;
+            }
+
+            if (!Schema::hasColumn('users', 'company_id')) {
+                $this->gagal(
+                    'Kolom users.company_id belum ada',
+                    'Data antar perusahaan berisiko tercampur. Jalankan: php artisan migrate --force'
+                );
+
+                return;
+            }
+
+            $this->lolos('Skema multi-perusahaan lengkap (' . \App\Models\Company::count() . ' perusahaan)');
+
+            // Akun tanpa perusahaan tidak terlihat admin mana pun.
+            $menggantung = \App\Models\User::whereNull('company_id')
+                ->where('role', '!=', \App\Models\User::ROLE_SUPERADMIN)
+                ->count();
+
+            if ($menggantung > 0) {
+                $this->peringatan(
+                    "{$menggantung} akun tidak terhubung ke perusahaan mana pun",
+                    'Akun ini tidak akan terlihat oleh admin mana pun. Tetapkan perusahaannya lewat Manajemen User.'
+                );
+            } else {
+                $this->lolos('Semua akun terhubung ke perusahaan');
+            }
+
+            $super = \App\Models\User::where('role', \App\Models\User::ROLE_SUPERADMIN)->count();
+
+            if ($super === 0) {
+                $this->gagal(
+                    'Tidak ada akun superadministrator',
+                    'Tidak ada yang bisa mengelola perusahaan. Jalankan: php artisan migrate --force'
+                );
+            } else {
+                $this->lolos("Superadministrator tersedia ({$super} akun)");
+            }
+        } catch (\Throwable $e) {
+            $this->gagal('Tidak bisa memeriksa skema perusahaan', $e->getMessage());
         }
     }
 

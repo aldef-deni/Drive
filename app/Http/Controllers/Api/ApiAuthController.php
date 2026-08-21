@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -50,6 +51,12 @@ class ApiAuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
+                'role_label' => $user->roleLabel(),
+                'is_superadmin' => $user->isSuperAdmin(),
+                'company' => $user->company ? [
+                    'id' => $user->company->id,
+                    'name' => $user->company->name,
+                ] : null,
                 'avatar' => $user->avatarUrl(),
                 'storage_quota' => $user->storage_quota,
                 'storage_used' => $user->storage_used,
@@ -65,14 +72,34 @@ class ApiAuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
             'password' => 'required|string|min:8|confirmed',
+            'company_id' => 'required|exists:companies,id',
         ]);
 
+        // Tanpa perusahaan, akun hasil pendaftaran menggantung dan tidak
+        // terlihat oleh admin mana pun.
+        $company = Company::where('id', $request->company_id)->where('is_active', true)->first();
+
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Perusahaan tidak tersedia atau sedang nonaktif.',
+            ], 422);
+        }
+
+        if ($company->isFull()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Jumlah akun di perusahaan ini sudah penuh. Hubungi admin Anda.',
+            ], 422);
+        }
+
         $user = User::create([
+            'company_id' => $company->id,
             'name' => $request->name,
             'email' => $request->email,
             'password' => $request->password,
-            'role' => 'user',
-            'storage_quota' => User::DEFAULT_STORAGE_QUOTA,
+            'role' => User::ROLE_USER,
+            'storage_quota' => $company->default_quota,
             'storage_used' => 0,
             'is_active' => false,
             'api_token' => Str::random(64),
@@ -80,7 +107,14 @@ class ApiAuthController extends Controller
 
         // Beri tahu admin, sama seperti registrasi lewat web. Tanpa ini
         // pendaftar dari aplikasi bisa menunggu tanpa ada yang tahu.
-        foreach (User::where('role', 'admin')->where('is_active', true)->get() as $admin) {
+        $penerima = User::where('is_active', true)
+            ->where(function ($q) use ($company) {
+                $q->where(fn ($w) => $w->where('role', User::ROLE_ADMIN)->where('company_id', $company->id))
+                    ->orWhere('role', User::ROLE_SUPERADMIN);
+            })
+            ->get();
+
+        foreach ($penerima as $admin) {
             Notification::create([
                 'user_id' => $admin->id,
                 'type'    => 'new_registration',
@@ -95,6 +129,21 @@ class ApiAuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Registrasi berhasil. Mohon tunggu verifikasi admin.',
+        ]);
+    }
+
+    /**
+     * Daftar perusahaan aktif untuk pemilihan saat registrasi.
+     * Publik, dan sengaja hanya memuat id serta nama.
+     */
+    public function companies()
+    {
+        return response()->json([
+            'success' => true,
+            'companies' => Company::where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name]),
         ]);
     }
 
@@ -120,6 +169,12 @@ class ApiAuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
+                'role_label' => $user->roleLabel(),
+                'is_superadmin' => $user->isSuperAdmin(),
+                'company' => $user->company ? [
+                    'id' => $user->company->id,
+                    'name' => $user->company->name,
+                ] : null,
                 'avatar' => $user->avatarUrl(),
                 'storage_quota' => $user->storage_quota,
                 'storage_used' => $user->storage_used,
