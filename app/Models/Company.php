@@ -71,6 +71,15 @@ class Company extends Model
         return $slug;
     }
 
+    /**
+     * Kuota bawaan dalam GB, tanpa nol berekor.
+     * number_format memaksa "100.0"; angka bulat sebaiknya tampil "100".
+     */
+    public function defaultQuotaGb(): string
+    {
+        return rtrim(rtrim(number_format($this->default_quota / 1073741824, 2, '.', ''), '0'), '.');
+    }
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class);

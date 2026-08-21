@@ -65,8 +65,8 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                     <label class="label" for="default_quota_gb">Kuota per Akun (GB)</label>
-                    <input type="number" id="default_quota_gb" name="default_quota_gb" step="0.1" min="0.1" max="10240" required
-                        value="{{ old('default_quota_gb', round($company->default_quota / 1073741824, 1)) }}"
+                    <input type="number" id="default_quota_gb" name="default_quota_gb" step="any" min="0.1" max="10240" required
+                        value="{{ old('default_quota_gb', $company->exists ? $company->defaultQuotaGb() : 1) }}"
                         class="field">
                     <p class="text-xs text-slate-500 mt-1.5">Kuota bawaan untuk setiap akun baru di perusahaan ini.</p>
                     @error('default_quota_gb')<p class="text-sm text-red-400 mt-1.5">{{ $message }}</p>@enderror

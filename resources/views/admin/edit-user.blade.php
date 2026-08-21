@@ -51,7 +51,7 @@
                 <div>
                     <label class="label">Kuota Penyimpanan (GB)</label>
                     <div class="flex items-center gap-2">
-                        <input type="number" id="storageQuotaGb" step="0.1" min="0.1"
+                        <input type="number" id="storageQuotaGb" step="any" min="0.1"
                             value="{{ round($user->storage_quota / 1073741824, 1) }}"
                             class="field">
                         <span class="text-slate-300 font-medium whitespace-nowrap">GB</span>

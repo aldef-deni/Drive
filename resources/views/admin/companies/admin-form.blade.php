@@ -54,7 +54,7 @@
                 <i class="fas fa-circle-info text-gold-500 mt-0.5"></i>
                 <p class="text-xs text-slate-400 leading-relaxed">
                     Akun langsung aktif tanpa perlu verifikasi, dengan kuota
-                    {{ number_format($company->default_quota / 1073741824, 1) }} GB mengikuti
+                    {{ $company->defaultQuotaGb() }} GB mengikuti
                     pengaturan perusahaan. Admin ini tidak bisa melihat perusahaan lain
                     maupun mengelola perusahaan.
                 </p>

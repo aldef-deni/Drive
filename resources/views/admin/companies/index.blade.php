@@ -107,7 +107,7 @@
                         <span><i class="fas fa-users mr-1.5 text-gold-500/70"></i>{{ $company->users_count }}
                             @if($company->max_users)<span class="text-slate-600">/ {{ $company->max_users }}</span>@endif pengguna</span>
                         <span><i class="fas fa-hard-drive mr-1.5 text-gold-500/70"></i>{{ \App\Models\User::formatStorageSize($terpakai) }} terpakai</span>
-                        <span><i class="fas fa-gauge mr-1.5 text-gold-500/70"></i>Kuota {{ number_format($company->default_quota / 1073741824, 1) }} GB / akun</span>
+                        <span><i class="fas fa-gauge mr-1.5 text-gold-500/70"></i>Kuota {{ $company->defaultQuotaGb() }} GB / akun</span>
                     </div>
 
                     <div class="mt-3 max-w-md">

@@ -86,11 +86,11 @@
             <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-white truncate">{{ $c->name }}</p>
                 <p class="text-xs text-slate-400">
-                    Bawaan {{ number_format($c->default_quota / 1073741824, 1) }} GB per akun
+                    Bawaan {{ $c->defaultQuotaGb() }} GB per akun
                 </p>
             </div>
             <form action="{{ route('admin.quotas.company-default', $c) }}" method="POST"
-                  onsubmit="return confirm('Samakan kuota SEMUA pengguna {{ $c->name }} menjadi {{ number_format($c->default_quota / 1073741824, 1) }} GB?')">
+                  onsubmit="return confirm('Samakan kuota SEMUA pengguna {{ $c->name }} menjadi {{ $c->defaultQuotaGb() }} GB?')">
                 @csrf
                 <button type="submit" class="btn-ghost px-3 py-2 rounded-lg text-xs whitespace-nowrap">
                     <i class="fas fa-wand-magic-sparkles mr-1.5"></i>Samakan
@@ -205,7 +205,7 @@
                     @csrf
                     @method('PUT')
                     <div class="relative">
-                        <input type="number" name="quota_gb" step="0.1" min="0.01" max="10240" required
+                        <input type="number" name="quota_gb" step="any" min="0.01" max="10240" required
                             value="{{ round($user->storage_quota / 1073741824, 2) }}"
                             class="field !py-2 !pr-10 text-sm w-28">
                         <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 pointer-events-none">GB</span>
@@ -260,7 +260,7 @@
             </div>
 
             <label class="label" for="bulkQuota">Kuota per Akun (GB)</label>
-            <input type="number" name="quota_gb" id="bulkQuota" step="0.1" min="0.01" max="10240" required
+            <input type="number" name="quota_gb" id="bulkQuota" step="any" min="0.01" max="10240" required
                 value="1" class="field mb-4" placeholder="Contoh: 5">
 
             <div class="p-4 bg-navy-700/60 border border-navy-600 rounded-xl flex gap-3 mb-5">

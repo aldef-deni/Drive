@@ -122,6 +122,49 @@ class QuotaManagementTest extends TestCase
         $this->assertStringContainsString('di bawah pemakaian', session('success'));
     }
 
+    public function test_kuota_angka_bulat_bisa_disimpan_persis(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $target = $this->user($this->company('PT A'));
+
+        // Regresi: input memakai min="0.01" dengan step="0.1", sehingga browser
+        // hanya menganggap 0.01, 0.11, ... 99.91, 100.01 sebagai nilai sah dan
+        // menolak angka bulat seperti 100.
+        foreach ([1, 10, 50, 100, 512] as $gb) {
+            $this->actingAs($super)
+                ->put('/admin/quotas/' . $target->id, ['quota_gb' => $gb])
+                ->assertSessionHasNoErrors();
+
+            $this->assertSame($gb * self::GB, $target->fresh()->storage_quota,
+                "Kuota {$gb} GB harus tersimpan persis");
+        }
+    }
+
+    public function test_input_kuota_tidak_memaksa_kelipatan_tertentu(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $this->user($this->company('PT A'));
+
+        $html = $this->actingAs($super)->get('/admin/quotas')->assertOk()->getContent();
+
+        // step="0.1" berpasangan dengan min="0.01" adalah sumber penolakan
+        // angka bulat oleh browser. step="any" membebaskan nilainya.
+        $this->assertStringNotContainsString('step="0.1"', $html);
+        $this->assertStringContainsString('step="any"', $html);
+    }
+
+    public function test_kuota_pecahan_bebas_tetap_diterima(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $target = $this->user($this->company('PT A'));
+
+        $this->actingAs($super)
+            ->put('/admin/quotas/' . $target->id, ['quota_gb' => 2.75])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame((int) round(2.75 * self::GB), $target->fresh()->storage_quota);
+    }
+
     public function test_kuota_tidak_valid_ditolak(): void
     {
         $super = $this->user(null, User::ROLE_SUPERADMIN);
