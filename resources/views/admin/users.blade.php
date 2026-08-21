@@ -8,6 +8,21 @@
     <div class="p-4 md:p-6 border-b border-navy-600 flex flex-col sm:flex-row sm:items-center gap-3">
         <h2 class="text-lg font-semibold text-white flex-1">Manajemen User</h2>
 
+        {{-- Filter perusahaan, khusus superadmin --}}
+        @if($companies->count() > 0)
+        <form action="{{ route('admin.users') }}" method="GET" class="self-start">
+            <input type="hidden" name="filter" value="{{ $filter }}">
+            <select name="company" onchange="this.form.submit()" class="field !py-2 text-sm">
+                <option value="">Semua perusahaan</option>
+                @foreach($companies as $c)
+                <option value="{{ $c->id }}" {{ (string) $companyId === (string) $c->id ? 'selected' : '' }}>
+                    {{ $c->name }}
+                </option>
+                @endforeach
+            </select>
+        </form>
+        @endif
+
         {{-- Filter status --}}
         <div class="flex items-center gap-1 p-1 bg-navy-900 rounded-xl self-start">
             @foreach([
@@ -43,7 +58,15 @@
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-1.5 md:gap-2 flex-wrap">
                         <p class="font-medium text-white text-sm md:text-base truncate">{{ $user->name }}</p>
-                        <span class="px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium {{ $user->isAdmin() ? 'bg-purple-500/20 text-purple-300' : 'bg-navy-600 text-slate-300' }}">{{ ucfirst($user->role) }}</span>
+                        <span class="px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium
+                            @if($user->isSuperAdmin()) bg-gold-500/20 text-gold-300
+                            @elseif($user->isAdmin()) bg-purple-500/20 text-purple-300
+                            @else bg-navy-600 text-slate-300 @endif">{{ $user->roleLabel() }}</span>
+                        @if($user->company)
+                        <span class="px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium bg-blue-500/15 text-blue-300">
+                            <i class="fas fa-building mr-1"></i>{{ $user->company->name }}
+                        </span>
+                        @endif
                         <span class="px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium {{ $user->is_active ? 'bg-green-500/20 text-green-300' : 'bg-amber-500/20 text-amber-300' }}">{{ $user->is_active ? 'Aktif' : 'Menunggu verifikasi' }}</span>
                     </div>
                     <p class="text-[10px] md:text-xs text-slate-400 mt-1 truncate">{{ $user->email }} · {{ $user->files_count }} file · Bergabung {{ $user->created_at->format('d M Y') }}</p>
@@ -75,7 +98,7 @@
                             <i class="fas fa-redo text-sm"></i>
                         </button>
                     </form>
-                    @if($user->id !== auth()->id())
+                    @if($user->id !== auth()->id() && auth()->user()->canManage($user))
                     <form action="{{ route('admin.users.delete', $user) }}" method="POST" class="inline" onsubmit="return confirm('Hapus user ini beserta seluruh filenya?')">
                         @csrf
                         @method('DELETE')

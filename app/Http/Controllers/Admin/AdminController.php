@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Models\Notification;
 use App\Models\Setting;
 use App\Models\User;
@@ -18,24 +19,47 @@ class AdminController extends Controller
     }
 
     /**
+     * Pastikan pelaku berhak mengelola akun ini.
+     *
+     * Tanpa pemeriksaan ini, admin perusahaan A cukup menebak id untuk mengubah
+     * atau menghapus akun di perusahaan B — route model binding tidak peduli
+     * siapa pemiliknya.
+     */
+    private function pastikanBerhak(User $user): void
+    {
+        abort_unless(Auth::user()->canManage($user), 403,
+            'Akses ditolak. Akun ini berada di luar perusahaan Anda.');
+    }
+
+    /**
      * Show admin dashboard.
      */
     public function index()
     {
+        $pelaku = Auth::user();
+
+        // Seluruh angka dihitung dari query yang sudah dibatasi cakupannya,
+        // supaya admin perusahaan tidak pernah melihat data perusahaan lain.
+        $lingkup = fn () => User::query()->visibleTo($pelaku);
+
         $stats = [
-            'total_users' => User::count(),
-            'active_users' => User::where('is_active', true)->count(),
-            'pending_users' => User::where('is_active', false)->count(),
-            'total_storage_used' => User::sum('storage_used'),
-            'total_files' => \App\Models\File::count(),
+            'total_users' => $lingkup()->count(),
+            'active_users' => $lingkup()->where('is_active', true)->count(),
+            'pending_users' => $lingkup()->where('is_active', false)->count(),
+            'total_storage_used' => $lingkup()->sum('storage_used'),
+            'total_files' => \App\Models\File::whereIn('user_id', $lingkup()->select('id'))->count(),
         ];
 
         // Akun yang baru mendaftar dan masih menunggu verifikasi admin.
-        $pendingUsers = User::where('is_active', false)
+        $pendingUsers = $lingkup()
+            ->where('is_active', false)
+            ->with('company')
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $users = User::withCount('files')
+        $users = $lingkup()
+            ->withCount('files')
+            ->with('company')
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
@@ -43,6 +67,10 @@ class AdminController extends Controller
             'stats' => $stats,
             'pendingUsers' => $pendingUsers,
             'users' => $users,
+            'companyStats' => $pelaku->isSuperAdmin() ? [
+                'total' => Company::count(),
+                'active' => Company::where('is_active', true)->count(),
+            ] : null,
         ]);
     }
 
@@ -51,12 +79,22 @@ class AdminController extends Controller
      */
     public function users(Request $request)
     {
+        $pelaku = Auth::user();
+
         // Filter: semua / menunggu verifikasi / aktif
         $filter = $request->get('filter', 'all');
 
-        $users = User::withCount('files')
+        // Superadmin boleh menyaring per perusahaan; admin selalu terkunci
+        // pada perusahaannya sendiri.
+        $companyId = $pelaku->isSuperAdmin() ? $request->get('company') : null;
+
+        $users = User::query()
+            ->visibleTo($pelaku)
+            ->withCount('files')
+            ->with('company')
             ->when($filter === 'pending', fn ($q) => $q->where('is_active', false))
             ->when($filter === 'active', fn ($q) => $q->where('is_active', true))
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
             ->orderByRaw('is_active asc')
             ->orderBy('created_at', 'desc')
             ->paginate(20)
@@ -65,7 +103,9 @@ class AdminController extends Controller
         return view('admin.users', [
             'users' => $users,
             'filter' => $filter,
-            'pendingCount' => User::where('is_active', false)->count(),
+            'companyId' => $companyId,
+            'companies' => $pelaku->isSuperAdmin() ? Company::orderBy('name')->get() : collect(),
+            'pendingCount' => User::query()->visibleTo($pelaku)->where('is_active', false)->count(),
         ]);
     }
 
@@ -74,6 +114,8 @@ class AdminController extends Controller
      */
     public function editUser(User $user)
     {
+        $this->pastikanBerhak($user);
+
         return view('admin.edit-user', [
             'user' => $user,
         ]);
@@ -84,10 +126,15 @@ class AdminController extends Controller
      */
     public function updateUser(Request $request, User $user)
     {
+        $this->pastikanBerhak($user);
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
-            'role' => 'required|in:admin,user',
+            'role' => ['required', Auth::user()->isSuperAdmin()
+                ? 'in:superadmin,admin,user'
+                : 'in:admin,user'],
+            'company_id' => ['nullable', 'exists:companies,id'],
             'storage_quota' => 'required|integer|min:10485760', // 10MB minimum
             'is_active' => 'nullable|boolean',
         ]);
@@ -101,13 +148,20 @@ class AdminController extends Controller
                 ->with('error', 'Tidak bisa menurunkan role atau menonaktifkan akun sendiri');
         }
 
-        $user->update([
+        $data = [
             'name' => $request->name,
             'email' => $request->email,
             'role' => $request->role,
             'storage_quota' => $request->storage_quota,
             'is_active' => $isActive,
-        ]);
+        ];
+
+        // Memindahkan akun antar perusahaan hanya wewenang superadministrator.
+        if (Auth::user()->isSuperAdmin() && $request->filled('company_id')) {
+            $data['company_id'] = (int) $request->company_id;
+        }
+
+        $user->update($data);
 
         return redirect()->route('admin.users')
             ->with('success', 'User berhasil diperbarui');
@@ -118,6 +172,8 @@ class AdminController extends Controller
      */
     public function deleteUser(User $user)
     {
+        $this->pastikanBerhak($user);
+
         if ($user->id === Auth::id()) {
             return back()->with('error', 'Tidak bisa menghapus akun sendiri');
         }
@@ -149,6 +205,8 @@ class AdminController extends Controller
      */
     public function toggleUserStatus(User $user)
     {
+        $this->pastikanBerhak($user);
+
         if ($user->id === Auth::id()) {
             return back()->with('error', 'Tidak bisa menonaktifkan akun sendiri');
         }
@@ -224,6 +282,8 @@ class AdminController extends Controller
      */
     public function resetStorage(User $user, \App\Services\StorageService $storageService)
     {
+        $this->pastikanBerhak($user);
+
         // Hitung ulang dari file yang benar-benar ada, bukan sekadar dinolkan.
         $storageService->recalculateStorage($user);
 

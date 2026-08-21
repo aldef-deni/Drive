@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DriveController;
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\ShareController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\NotificationController;
@@ -75,6 +76,19 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
     // Hidden System — pengaturan kata kunci rahasia untuk memunculkan file tersembunyi
     Route::get('/hidden-system', [AdminController::class, 'hiddenSystem'])->name('admin.hidden');
     Route::put('/hidden-system', [AdminController::class, 'updateHiddenKeyword'])->name('admin.hidden.update');
+
+    // Pengelolaan perusahaan — khusus superadministrator
+    Route::middleware('superadmin')->prefix('companies')->group(function () {
+        Route::get('/', [CompanyController::class, 'index'])->name('admin.companies.index');
+        Route::get('/create', [CompanyController::class, 'create'])->name('admin.companies.create');
+        Route::post('/', [CompanyController::class, 'store'])->name('admin.companies.store');
+        Route::get('/{company}/edit', [CompanyController::class, 'edit'])->name('admin.companies.edit');
+        Route::put('/{company}', [CompanyController::class, 'update'])->name('admin.companies.update');
+        Route::post('/{company}/toggle', [CompanyController::class, 'toggle'])->name('admin.companies.toggle');
+        Route::delete('/{company}', [CompanyController::class, 'destroy'])->name('admin.companies.destroy');
+        Route::get('/{company}/admin', [CompanyController::class, 'createAdmin'])->name('admin.companies.admin.create');
+        Route::post('/{company}/admin', [CompanyController::class, 'storeAdmin'])->name('admin.companies.admin.store');
+    });
 });
 
 // Avatar (publik, tidak bergantung pada symlink public/storage)

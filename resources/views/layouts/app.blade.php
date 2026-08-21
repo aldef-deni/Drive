@@ -262,6 +262,16 @@
                     <span>Profil Saya</span>
                 </a>
 
+                @if(auth()->user()->isSuperAdmin())
+                <div class="pt-4 mt-4 border-t border-white/10 space-y-1.5">
+                    <p class="px-4 text-[11px] text-gold-400/70 uppercase tracking-wider mb-2">Superadmin</p>
+                    <a href="{{ route('admin.companies.index') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('admin.companies.*') ? 'active' : '' }}">
+                        <i class="fas fa-building w-5"></i>
+                        <span>Perusahaan</span>
+                    </a>
+                </div>
+                @endif
+
                 @if(auth()->user()->isAdmin())
                 <div class="pt-4 mt-4 border-t border-white/10 space-y-1.5">
                     <p class="px-4 text-[11px] text-white/40 uppercase tracking-wider mb-2">Admin</p>
@@ -312,7 +322,15 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <p class="text-sm font-medium truncate">{{ auth()->user()->name }}</p>
-                        <p class="text-xs text-white/50 truncate">{{ auth()->user()->email }}</p>
+                        <p class="text-xs text-white/50 truncate">
+                            @if(auth()->user()->isSuperAdmin())
+                                <span class="text-gold-400">Superadministrator</span>
+                            @elseif(auth()->user()->company)
+                                {{ auth()->user()->company->name }}
+                            @else
+                                {{ auth()->user()->email }}
+                            @endif
+                        </p>
                     </div>
                     <i class="fas fa-chevron-right text-white/25 group-hover:text-white/60 transition text-xs"></i>
                 </a>

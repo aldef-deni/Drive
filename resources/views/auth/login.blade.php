@@ -325,11 +325,11 @@
                 @csrf
                 
                 <div class="mb-4">
-                    <label class="block text-white/60 text-sm mb-2 font-medium">Alamat Email</label>
+                    <label class="block text-white/60 text-sm mb-2 font-medium">Email atau Username</label>
                     <div class="input-premium">
                         <i class="fas fa-envelope input-icon"></i>
-                        <input type="email" name="email" value="{{ old('email') }}" required autofocus
-                            placeholder="Masukkan email Anda">
+                        <input type="text" name="email" value="{{ old('email') }}" required autofocus autocapitalize="none"
+                            placeholder="Email atau username">
                     </div>
                 </div>
                 

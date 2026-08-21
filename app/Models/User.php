@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
@@ -15,6 +16,15 @@ class User extends Authenticatable
      */
     public const DEFAULT_STORAGE_QUOTA = 1073741824;
 
+    /** Peran tertinggi: mengelola perusahaan dan seluruh admin. */
+    public const ROLE_SUPERADMIN = 'superadmin';
+
+    /** Admin sebuah perusahaan: hanya melihat pengguna perusahaannya. */
+    public const ROLE_ADMIN = 'admin';
+
+    /** Pengguna biasa. */
+    public const ROLE_USER = 'user';
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
@@ -24,7 +34,8 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name', 'email', 'password', 'role', 'storage_quota', 'storage_used', 'is_active', 'avatar', 'api_token',
+        'company_id', 'name', 'username', 'email', 'password', 'role',
+        'storage_quota', 'storage_used', 'is_active', 'avatar', 'api_token',
     ];
 
     /**
@@ -133,11 +144,74 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user is admin.
+     * Perusahaan tempat pengguna ini bernaung.
+     * Superadministrator tidak terikat perusahaan mana pun.
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * Peran tertinggi, di atas seluruh admin perusahaan.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === self::ROLE_SUPERADMIN;
+    }
+
+    /**
+     * Punya akses ke area admin.
+     *
+     * Superadministrator ikut dianggap admin agar seluruh pemeriksaan akses
+     * yang sudah ada tetap berlaku; cakupan datanya yang membedakan.
      */
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->role === self::ROLE_ADMIN || $this->isSuperAdmin();
+    }
+
+    /**
+     * Apakah pengguna ini boleh mengelola $lain?
+     *
+     * Superadmin boleh atas siapa pun kecuali dirinya sendiri untuk aksi
+     * merusak. Admin hanya boleh atas pengguna di perusahaannya, dan tidak
+     * boleh menyentuh superadmin.
+     */
+    public function canManage(User $lain): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (!$this->isAdmin() || $lain->isSuperAdmin()) {
+            return false;
+        }
+
+        return $this->company_id !== null && $this->company_id === $lain->company_id;
+    }
+
+    /**
+     * Batasi query ke perusahaan pengguna ini.
+     * Superadministrator melihat seluruh data tanpa penyaringan.
+     */
+    public function scopeVisibleTo($query, User $pelaku)
+    {
+        if ($pelaku->isSuperAdmin()) {
+            return $query;
+        }
+
+        return $query->where('company_id', $pelaku->company_id);
+    }
+
+    /** Label peran untuk ditampilkan. */
+    public function roleLabel(): string
+    {
+        return match ($this->role) {
+            self::ROLE_SUPERADMIN => 'Superadmin',
+            self::ROLE_ADMIN => 'Admin',
+            default => 'User',
+        };
     }
 
     /**

@@ -318,6 +318,21 @@
                 </div>
                 
                 <div class="mb-3">
+                    <label class="block text-white/60 text-sm mb-1.5 font-medium">Perusahaan</label>
+                    <div class="input-premium">
+                        <i class="fas fa-building input-icon"></i>
+                        <select name="company_id" required
+                            style="width:100%;background:transparent;border:0;outline:none;color:#fff;padding:14px 16px 14px 46px;font-size:15px;appearance:none">
+                            <option value="" style="background:#0a1628">Pilih perusahaan Anda</option>
+                            @foreach($companies as $c)
+                            <option value="{{ $c->id }}" style="background:#0a1628"
+                                {{ old('company_id') == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3">
                     <label class="block text-white/60 text-sm mb-1.5 font-medium">Alamat Email</label>
                     <div class="input-premium">
                         <i class="fas fa-envelope input-icon"></i>
