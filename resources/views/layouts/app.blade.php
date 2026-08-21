@@ -269,6 +269,10 @@
                         <i class="fas fa-building w-5"></i>
                         <span>Perusahaan</span>
                     </a>
+                    <a href="{{ route('admin.quotas.index') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('admin.quotas.*') ? 'active' : '' }}">
+                        <i class="fas fa-database w-5"></i>
+                        <span>Kuota Penyimpanan</span>
+                    </a>
                 </div>
                 @endif
 

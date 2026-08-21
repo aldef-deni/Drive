@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DriveController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\QuotaController;
 use App\Http\Controllers\ShareController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\NotificationController;
@@ -88,6 +89,15 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
         Route::delete('/{company}', [CompanyController::class, 'destroy'])->name('admin.companies.destroy');
         Route::get('/{company}/admin', [CompanyController::class, 'createAdmin'])->name('admin.companies.admin.create');
         Route::post('/{company}/admin', [CompanyController::class, 'storeAdmin'])->name('admin.companies.admin.store');
+    });
+
+    // Kuota penyimpanan seluruh pengguna — khusus superadministrator
+    Route::middleware('superadmin')->prefix('quotas')->group(function () {
+        Route::get('/', [QuotaController::class, 'index'])->name('admin.quotas.index');
+        Route::put('/{user}', [QuotaController::class, 'update'])->name('admin.quotas.update');
+        Route::post('/bulk', [QuotaController::class, 'bulk'])->name('admin.quotas.bulk');
+        Route::post('/company/{company}/default', [QuotaController::class, 'applyCompanyDefault'])
+            ->name('admin.quotas.company-default');
     });
 });
 
