@@ -131,7 +131,10 @@ class ApiAdminController extends Controller
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|unique:users,email,' . $user->id,
             'role' => 'sometimes|in:user,admin',
-            'storage_quota_gb' => 'sometimes|numeric|min:1',
+            // Batas bawah disamakan dengan dasbor web (10 MB). Sebelumnya min:1
+            // menolak kuota di bawah 1 GB, sehingga akun yang diatur dari web
+            // tidak bisa disimpan ulang lewat aplikasi.
+            'storage_quota_gb' => 'sometimes|numeric|min:0.01',
             'is_active' => 'sometimes|boolean',
         ]);
 
