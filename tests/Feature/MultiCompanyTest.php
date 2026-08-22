@@ -406,6 +406,166 @@ class MultiCompanyTest extends TestCase
         $this->assertSame(2 * 1073741824, $baru->storage_quota);
     }
 
+    // --------------------------------- API superadministrator (aplikasi)
+
+    public function test_api_login_menerima_username_selain_email(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN, ['username' => 'superuji']);
+        $super->update(['password' => \Illuminate\Support\Facades\Hash::make('rahasia12345')]);
+
+        // Superadministrator tidak punya email perusahaan; tanpa dukungan
+        // username ia tidak bisa masuk lewat aplikasi sama sekali.
+        $res = $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/login', ['email' => 'superuji', 'password' => 'rahasia12345'])
+            ->assertOk()->json();
+
+        $this->assertTrue($res['user']['is_superadmin']);
+
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/login', ['email' => 'superuji', 'password' => 'salah'])
+            ->assertStatus(401);
+    }
+
+    public function test_api_login_menutup_akses_saat_perusahaan_nonaktif(): void
+    {
+        $company = $this->company('PT Tutup');
+        $user = $this->user($company, User::ROLE_USER, ['is_active' => true]);
+        $user->update(['password' => \Illuminate\Support\Facades\Hash::make('rahasia12345')]);
+
+        $company->update(['is_active' => false]);
+
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/login', ['email' => $user->email, 'password' => 'rahasia12345'])
+            ->assertStatus(403);
+    }
+
+    public function test_api_perusahaan_hanya_bisa_dikelola_superadmin(): void
+    {
+        $company = $this->company('PT Jaga');
+        $admin = $this->user($company, User::ROLE_ADMIN);
+
+        $this->withHeaders($this->bearer($admin))
+            ->get('/api/admin/companies')->assertForbidden();
+
+        $this->app['auth']->forgetGuards();
+
+        $this->withHeaders($this->bearer($admin))
+            ->post('/api/admin/companies', ['name' => 'PT Selundupan', 'default_quota_gb' => 1])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('companies', ['name' => 'PT Selundupan']);
+    }
+
+    public function test_api_superadmin_bisa_crud_perusahaan(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+
+        // Buat
+        $this->withHeaders($this->bearer($super))->post('/api/admin/companies', [
+            'name' => 'PT Aplikasi Baru',
+            'email' => 'kontak@aplikasi.test',
+            'default_quota_gb' => 5,
+            'is_active' => true,
+        ])->assertOk()->assertJson(['success' => true]);
+
+        $company = Company::where('name', 'PT Aplikasi Baru')->firstOrFail();
+        $this->assertSame(5 * 1073741824, $company->default_quota);
+
+        // Ubah
+        $this->withHeaders($this->bearer($super))
+            ->post('/api/admin/companies/' . $company->id, [
+                'name' => 'PT Aplikasi Baru',
+                'default_quota_gb' => 8,
+                'is_active' => true,
+            ])->assertOk();
+
+        $this->assertSame(8 * 1073741824, $company->fresh()->default_quota);
+
+        // Nonaktifkan: penggunanya ikut kehilangan akses
+        $anggota = $this->user($company);
+        $this->withHeaders($this->bearer($super))
+            ->post('/api/admin/companies/' . $company->id . '/toggle')->assertOk();
+
+        $this->assertFalse($company->fresh()->is_active);
+        $this->assertFalse($anggota->fresh()->is_active);
+
+        // Berpenghuni tidak boleh dihapus
+        $this->withHeaders($this->bearer($super))
+            ->delete('/api/admin/companies/' . $company->id)->assertStatus(422);
+
+        $anggota->delete();
+
+        $this->withHeaders($this->bearer($super))
+            ->delete('/api/admin/companies/' . $company->id)->assertOk();
+
+        $this->assertDatabaseMissing('companies', ['id' => $company->id]);
+    }
+
+    public function test_api_kuota_bisa_diatur_satuan_dan_massal(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $a = $this->company('PT Kuota A');
+        $b = $this->company('PT Kuota B');
+
+        $satu = $this->user($a);
+        $dua = $this->user($a);
+        $lain = $this->user($b);
+
+        $this->withHeaders($this->bearer($super))
+            ->put('/api/admin/quotas/' . $satu->id, ['quota_gb' => 7])->assertOk();
+
+        $this->assertSame(7 * 1073741824, $satu->fresh()->storage_quota);
+        $this->assertDatabaseHas('notifications', ['user_id' => $satu->id, 'type' => 'quota_changed']);
+
+        $this->withHeaders($this->bearer($super))->post('/api/admin/quotas/bulk', [
+            'quota_gb' => 3,
+            'target' => 'company',
+            'company_id' => $a->id,
+        ])->assertOk();
+
+        $this->assertSame(3 * 1073741824, $satu->fresh()->storage_quota);
+        $this->assertSame(3 * 1073741824, $dua->fresh()->storage_quota);
+        $this->assertSame(User::DEFAULT_STORAGE_QUOTA, $lain->fresh()->storage_quota,
+            'Perusahaan lain tidak boleh ikut berubah');
+    }
+
+    public function test_api_superadmin_membuat_akun_yang_langsung_aktif(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $company = $this->company('PT Rekrut', ['default_quota' => 4 * 1073741824]);
+
+        $this->withHeaders($this->bearer($super))->post('/api/admin/create-user', [
+            'name' => 'Dari Aplikasi',
+            'email' => 'dariapp@dekorasi.test',
+            'company_id' => $company->id,
+            'role' => User::ROLE_ADMIN,
+            'password' => 'rahasia12345',
+        ])->assertOk()->assertJson(['success' => true]);
+
+        $baru = User::where('email', 'dariapp@dekorasi.test')->firstOrFail();
+
+        $this->assertTrue($baru->is_active);
+        $this->assertSame(User::ROLE_ADMIN, $baru->role);
+        $this->assertSame(4 * 1073741824, $baru->storage_quota);
+        $this->assertNotNull($baru->api_token, 'Akun baru harus bisa langsung masuk lewat aplikasi');
+    }
+
+    public function test_api_tidak_bisa_membuat_superadmin_baru(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $company = $this->company('PT Coba API');
+
+        $this->withHeaders($this->bearer($super))->post('/api/admin/create-user', [
+            'name' => 'Calon Super',
+            'email' => 'calonsuperapi@dekorasi.test',
+            'company_id' => $company->id,
+            'role' => User::ROLE_SUPERADMIN,
+            'password' => 'rahasia12345',
+        ])->assertStatus(422);
+
+        $this->assertDatabaseMissing('users', ['email' => 'calonsuperapi@dekorasi.test']);
+    }
+
     // ------------------------------------------------ Logo perusahaan
 
     /** Bersihkan logo yang tertulis ke disk selama pengujian. */

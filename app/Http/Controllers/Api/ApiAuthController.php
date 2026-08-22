@@ -16,16 +16,22 @@ class ApiAuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            'email' => 'required|string',
             'password' => 'required',
-        ]);
+        ], [], ['email' => 'email atau username']);
 
-        $user = User::where('email', $request->email)->first();
+        // Superadministrator masuk memakai username, pengguna lain memakai
+        // email. Satu kolom isian menerima keduanya, sama seperti di web -
+        // tanpa ini superadmin tidak bisa masuk lewat aplikasi sama sekali.
+        $isian = trim($request->email);
+        $kolom = filter_var($isian, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+
+        $user = User::where($kolom, $isian)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Email atau password salah',
+                'message' => 'Email/username atau password salah',
             ], 401);
         }
 
@@ -33,6 +39,13 @@ class ApiAuthController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Akun Anda belum diverifikasi oleh admin',
+            ], 403);
+        }
+
+        if ($user->company && !$user->company->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Perusahaan Anda sedang nonaktif. Hubungi administrator.',
             ], 403);
         }
 

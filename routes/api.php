@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ApiDriveController;
 use App\Http\Controllers\Api\ApiProfileController;
 use App\Http\Controllers\Api\ApiNotificationController;
 use App\Http\Controllers\Api\ApiAdminController;
+use App\Http\Controllers\Api\ApiSuperAdminController;
 use App\Http\Controllers\Api\ApiShareController;
 
 // Public API routes
@@ -67,6 +68,23 @@ Route::middleware('auth:api')->group(function () {
         // Hidden System — kata kunci rahasia untuk memunculkan file tersembunyi
         Route::get('/hidden-keyword', [ApiAdminController::class, 'hiddenKeyword']);
         Route::put('/hidden-keyword', [ApiAdminController::class, 'updateHiddenKeyword']);
+
+        // Fungsi superadministrator — cerminan menu Perusahaan, Kuota, dan
+        // pembuatan akun di dasbor web.
+        Route::middleware('superadmin')->group(function () {
+            Route::get('/companies', [ApiSuperAdminController::class, 'companies']);
+            Route::post('/companies', [ApiSuperAdminController::class, 'storeCompany']);
+            Route::post('/companies/{company}', [ApiSuperAdminController::class, 'updateCompany']);
+            Route::post('/companies/{company}/toggle', [ApiSuperAdminController::class, 'toggleCompany']);
+            Route::delete('/companies/{company}', [ApiSuperAdminController::class, 'destroyCompany']);
+
+            Route::get('/quotas', [ApiSuperAdminController::class, 'quotas']);
+            Route::put('/quotas/{user}', [ApiSuperAdminController::class, 'updateQuota']);
+            Route::post('/quotas/bulk', [ApiSuperAdminController::class, 'bulkQuota']);
+            Route::post('/quotas/company/{company}/default', [ApiSuperAdminController::class, 'applyCompanyDefault']);
+
+            Route::post('/create-user', [ApiSuperAdminController::class, 'storeUser']);
+        });
     });
 
     // Share download
