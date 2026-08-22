@@ -276,6 +276,24 @@ class MultiCompanyTest extends TestCase
 
     // ------------------------------------------------------------ Registrasi
 
+    public function test_daftar_perusahaan_di_form_daftar_hanya_berisi_perusahaan(): void
+    {
+        $this->company('PT Satu');
+        $this->company('PT Dua');
+
+        $html = $this->get('/register')->assertOk()->getContent();
+
+        $this->assertStringContainsString('PT Satu', $html);
+        $this->assertStringContainsString('PT Dua', $html);
+
+        // Teks bantunya harus tetap terbaca di kolom, tetapi tidak boleh ikut
+        // berbaris sebagai pilihan - pemakai pernah mengira itu perusahaan.
+        $this->assertMatchesRegularExpression(
+            '/<option value=""[^>]*\bdisabled\b[^>]*\bhidden\b[^>]*>\s*Pilih perusahaan Anda/',
+            $html
+        );
+    }
+
     public function test_registrasi_mengikat_akun_ke_perusahaan_terpilih(): void
     {
         $company = $this->company('PT Daftar', ['default_quota' => 3 * 1073741824]);

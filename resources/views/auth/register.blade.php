@@ -323,7 +323,10 @@
                         <i class="fas fa-building input-icon"></i>
                         <select name="company_id" required
                             style="width:100%;background:transparent;border:0;outline:none;color:#fff;padding:14px 16px 14px 46px;font-size:15px;appearance:none">
-                            <option value="" style="background:#0a1628">Pilih perusahaan Anda</option>
+                            {{-- disabled hidden: tetap tampil sebagai teks bantu di kolomnya,
+                                 tetapi tidak ikut muncul sebagai pilihan di daftar --}}
+                            <option value="" disabled hidden {{ old('company_id') ? '' : 'selected' }}
+                                style="background:#0a1628">Pilih perusahaan Anda</option>
                             @foreach($companies as $c)
                             <option value="{{ $c->id }}" style="background:#0a1628"
                                 {{ old('company_id') == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
