@@ -236,9 +236,15 @@ class AdminController extends Controller
      */
     public function hiddenSystem()
     {
+        // Kata kunci hanya diperlihatkan kepada superadministrator. Admin
+        // perusahaan tetap bisa menggantinya, tetapi tidak melihat nilainya.
+        $terlihat = Auth::user()->isSuperAdmin();
+
         return view('admin.hidden-system', [
             'isDefault' => Setting::get(Setting::HIDDEN_KEYWORD) === null,
             'updatedAt' => Setting::hiddenKeywordUpdatedAt(),
+            'keyword' => $terlihat ? Setting::hiddenKeywordPlain() : null,
+            'canReveal' => $terlihat,
         ]);
     }
 

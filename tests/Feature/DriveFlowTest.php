@@ -446,7 +446,7 @@ class DriveFlowTest extends TestCase
             ->assertSessionHas('hidden_revealed', true);
     }
 
-    public function test_kata_kunci_disimpan_sebagai_hash(): void
+    public function test_kata_kunci_tidak_pernah_tersimpan_apa_adanya(): void
     {
         Setting::setHiddenKeyword('rahasiaKu99');
 
@@ -455,6 +455,57 @@ class DriveFlowTest extends TestCase
         $this->assertNotSame('rahasiaKu99', $tersimpan);
         $this->assertStringNotContainsString('rahasiaKu99', (string) $tersimpan);
         $this->assertTrue(Setting::matchesHiddenKeyword('rahasiaKu99'));
+    }
+
+    public function test_kata_kunci_aktif_bisa_dibaca_kembali(): void
+    {
+        // Nilai bawaan berlaku selama belum pernah diganti.
+        $this->assertSame(Setting::DEFAULT_HIDDEN_KEYWORD, Setting::hiddenKeywordPlain());
+
+        Setting::setHiddenKeyword('rahasiaKu99');
+
+        $this->assertSame('rahasiaKu99', Setting::hiddenKeywordPlain());
+    }
+
+    public function test_kata_kunci_hash_versi_lama_tetap_berlaku_tapi_tidak_terbaca(): void
+    {
+        // Simulasi data lama: nilainya hash bcrypt, bukan hasil enkripsi.
+        Setting::put(Setting::HIDDEN_KEYWORD, Hash::make('kunciLama77'));
+
+        $this->assertTrue(Setting::matchesHiddenKeyword('kunciLama77'),
+            'Kata kunci lama harus tetap membuka file tersembunyi');
+        $this->assertFalse(Setting::matchesHiddenKeyword('kunciSalah'));
+        $this->assertNull(Setting::hiddenKeywordPlain(),
+            'Hash searah tidak boleh dipaksa dibaca');
+
+        // Setelah diganti sekali, nilainya bisa ditampilkan lagi.
+        Setting::setHiddenKeyword('kunciBaru88');
+        $this->assertSame('kunciBaru88', Setting::hiddenKeywordPlain());
+    }
+
+    public function test_superadmin_melihat_kata_kunci_aktif_di_menu_hidden_system(): void
+    {
+        Setting::setHiddenKeyword('kunciTampil42');
+
+        $super = $this->makeUser(['role' => User::ROLE_SUPERADMIN, 'company_id' => null]);
+
+        $this->actingAs($super)->get('/admin/hidden-system')
+            ->assertOk()
+            ->assertSee('Kata Kunci Aktif')
+            ->assertSee('kunciTampil42');
+    }
+
+    public function test_admin_perusahaan_tidak_melihat_kata_kunci_aktif(): void
+    {
+        Setting::setHiddenKeyword('kunciTampil42');
+
+        $admin = $this->makeUser(['role' => User::ROLE_ADMIN]);
+
+        // Admin masih boleh mengganti kata kunci, tetapi tidak boleh membacanya.
+        $this->actingAs($admin)->get('/admin/hidden-system')
+            ->assertOk()
+            ->assertDontSee('Kata Kunci Aktif')
+            ->assertDontSee('kunciTampil42');
     }
 
     public function test_menu_hidden_system_hanya_untuk_admin(): void

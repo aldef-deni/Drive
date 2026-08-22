@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 
 /**
@@ -50,12 +51,50 @@ class Setting extends Model
         Cache::forget(self::CACHE_PREFIX . $key);
     }
 
+    /** Penanda nilai terenkripsi, membedakannya dari hash bcrypt lama. */
+    private const ENC_PREFIX = 'enc:';
+
     /**
-     * Simpan kata kunci rahasia dalam bentuk hash.
+     * Simpan kata kunci rahasia dalam bentuk terenkripsi.
+     *
+     * Sengaja dienkripsi, bukan di-hash, supaya superadministrator bisa melihat
+     * kata kunci yang sedang berlaku — tanpa itu, satu-satunya jalan keluar saat
+     * lupa adalah menggantinya dan memberi tahu ulang seluruh pengguna.
+     *
+     * Konsekuensinya nilai ini bisa dibuka siapa pun yang memegang database
+     * DAN APP_KEY sekaligus. Kata kunci ini memang kode akses bersama, bukan
+     * kredensial pribadi, jadi pertukaran itu dapat diterima.
      */
     public static function setHiddenKeyword(string $keyword): void
     {
-        static::put(self::HIDDEN_KEYWORD, Hash::make($keyword));
+        static::put(self::HIDDEN_KEYWORD, self::ENC_PREFIX . Crypt::encryptString($keyword));
+    }
+
+    /**
+     * Kata kunci yang sedang berlaku, apa adanya.
+     *
+     * Mengembalikan null bila nilainya masih hash bcrypt dari versi lama —
+     * hash tidak bisa dibaca balik, jadi kata kunci itu harus diganti sekali
+     * agar bisa ditampilkan.
+     */
+    public static function hiddenKeywordPlain(): ?string
+    {
+        $nilai = static::get(self::HIDDEN_KEYWORD);
+
+        if (!$nilai) {
+            return self::DEFAULT_HIDDEN_KEYWORD;
+        }
+
+        if (!str_starts_with($nilai, self::ENC_PREFIX)) {
+            return null; // hash lama, tidak bisa dipulihkan
+        }
+
+        try {
+            return Crypt::decryptString(substr($nilai, strlen(self::ENC_PREFIX)));
+        } catch (\Throwable $e) {
+            // APP_KEY berubah setelah nilai ini disimpan.
+            return null;
+        }
     }
 
     /**
@@ -78,13 +117,21 @@ class Setting extends Model
             return false;
         }
 
-        $hash = static::get(self::HIDDEN_KEYWORD);
+        $tersimpan = static::get(self::HIDDEN_KEYWORD);
 
-        if (!$hash) {
+        if (!$tersimpan) {
             return hash_equals(self::DEFAULT_HIDDEN_KEYWORD, $input);
         }
 
-        return Hash::check($input, $hash);
+        // Nilai terenkripsi dibandingkan apa adanya.
+        if (str_starts_with($tersimpan, self::ENC_PREFIX)) {
+            $asli = self::hiddenKeywordPlain();
+
+            return $asli !== null && hash_equals($asli, $input);
+        }
+
+        // Kata kunci yang disimpan versi lama tetap berlaku sampai diganti.
+        return Hash::check($input, $tersimpan);
     }
 
     /**
