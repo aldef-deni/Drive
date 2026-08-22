@@ -416,12 +416,24 @@
                             <div id="notifPanel" class="hidden absolute right-0 top-12 w-[min(20rem,calc(100vw-2rem))] panel z-50 overflow-hidden">
                                 <div class="p-4 border-b border-navy-600 flex items-center justify-between gap-2">
                                     <h3 class="font-semibold text-white text-sm">Notifikasi</h3>
-                                    @if($unreadCount > 0)
-                                    <form action="{{ route('notifications.read-all') }}" method="POST">
-                                        @csrf
-                                        <button type="submit" class="text-xs text-gold-500 hover:text-gold-400">Tandai semua dibaca</button>
-                                    </form>
-                                    @endif
+                                    <div class="flex items-center gap-3">
+                                        @if($unreadCount > 0)
+                                        <form action="{{ route('notifications.read-all') }}" method="POST">
+                                            @csrf
+                                            <button type="submit" class="text-xs text-gold-500 hover:text-gold-400">Tandai semua dibaca</button>
+                                        </form>
+                                        @endif
+
+                                        {{-- Konfirmasinya ada di halaman Notifikasi; dari sini
+                                             cukup diarahkan ke sana agar tidak ada penghapusan
+                                             massal yang terpicu dari satu ketukan di panel kecil. --}}
+                                        @if($latestNotifs->count() > 0)
+                                        <a href="{{ route('notifications.index') }}" title="Kelola notifikasi"
+                                           class="text-xs text-slate-400 hover:text-red-400">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                        @endif
+                                    </div>
                                 </div>
                                 <div class="max-h-80 overflow-y-auto">
                                     @forelse($latestNotifs as $notif)

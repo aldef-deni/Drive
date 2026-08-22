@@ -65,4 +65,23 @@ class ApiNotificationController extends Controller
             'message' => 'Semua notifikasi ditandai sudah dibaca',
         ]);
     }
+
+    /**
+     * Hapus seluruh notifikasi milik pengguna.
+     *
+     * Dibatasi pada pemiliknya: membersihkan kotak sendiri tidak boleh
+     * menyentuh notifikasi orang lain.
+     */
+    public function destroyAll(Request $request)
+    {
+        $jumlah = Notification::where('user_id', $request->user()->id)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => $jumlah > 0
+                ? $jumlah . ' notifikasi dihapus'
+                : 'Tidak ada notifikasi untuk dihapus',
+            'deleted' => $jumlah,
+        ]);
+    }
 }

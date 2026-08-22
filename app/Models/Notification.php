@@ -20,31 +20,61 @@ class Notification extends Model
         return $this->belongsTo(User::class);
     }
 
+    /** Peringatan kuota muncul saat sisanya di bawah angka ini. */
+    public const QUOTA_WARNING_THRESHOLD = 52428800; // 50 MB
+
     /**
-     * Create a notification and auto-check quota for the user.
+     * Peringatkan pengguna bila sisa kuotanya menipis.
+     *
+     * Ambangnya pernah 1 GB, sama dengan kuota bawaan akun baru - akibatnya
+     * peringatan muncul sejak unggahan pertama, saat kuota masih 96% kosong,
+     * dan kehilangan artinya sebagai peringatan.
      */
     public static function createAndCheckQuota(User $user): void
     {
-        // Check if quota is below 1 GB
         $remaining = $user->storage_quota - $user->storage_used;
-        if ($remaining < 1073741824) { // 1 GB
-            $alreadyNotified = self::where('user_id', $user->id)
-                ->where('type', 'quota_low')
-                ->whereDate('created_at', now()->toDateString())
-                ->exists();
 
-            if (!$alreadyNotified) {
-                self::create([
-                    'user_id' => $user->id,
-                    'type'    => 'quota_low',
-                    'title'   => 'Kuota Hampir Habis',
-                    'message' => 'Sisa kuota drive Anda tinggal ' . self::formatBytes($remaining) . '. Harap upgrade kuota.',
-                    'icon'    => 'fas fa-exclamation-triangle',
-                    'color'   => 'amber',
-                    'url'     => null,
-                ]);
-            }
+        if ($remaining >= self::quotaWarningThreshold($user)) {
+            return;
         }
+
+        // Sekali sehari sudah cukup; mengulanginya tiap unggahan hanya
+        // menenggelamkan notifikasi lain.
+        $alreadyNotified = self::where('user_id', $user->id)
+            ->where('type', 'quota_low')
+            ->whereDate('created_at', now()->toDateString())
+            ->exists();
+
+        if ($alreadyNotified) {
+            return;
+        }
+
+        $habis = $remaining <= 0;
+
+        self::create([
+            'user_id' => $user->id,
+            'type'    => 'quota_low',
+            'title'   => $habis ? 'Kuota Penyimpanan Habis' : 'Kuota Hampir Habis',
+            'message' => $habis
+                ? 'Kuota drive Anda sudah penuh. Hapus file lama atau hubungi admin untuk menambah kuota.'
+                : 'Sisa kuota drive Anda tinggal ' . self::formatBytes($remaining)
+                    . '. Hapus file lama atau hubungi admin untuk menambah kuota.',
+            'icon'    => 'fas fa-exclamation-triangle',
+            'color'   => $habis ? 'red' : 'amber',
+            'url'     => null,
+        ]);
+    }
+
+    /**
+     * Batas sisa kuota yang memicu peringatan.
+     *
+     * Untuk kuota yang lebih kecil dari 50 MB, ambang tetap 50 MB akan selalu
+     * terlampaui - bahkan saat drive-nya masih kosong. Karena itu ambangnya
+     * ikut mengecil menjadi sepersepuluh kuota.
+     */
+    private static function quotaWarningThreshold(User $user): int
+    {
+        return (int) min(self::QUOTA_WARNING_THRESHOLD, floor($user->storage_quota * 0.1));
     }
 
     private static function formatBytes($bytes): string

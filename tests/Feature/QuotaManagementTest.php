@@ -40,6 +40,189 @@ class QuotaManagementTest extends TestCase
         ], $extra));
     }
 
+    // ------------------------------------------- Penghapusan notifikasi
+
+    private function notif(User $user, string $judul = 'Uji'): \App\Models\Notification
+    {
+        return \App\Models\Notification::create([
+            'user_id' => $user->id,
+            'type' => 'uji',
+            'title' => $judul,
+            'message' => 'Isi notifikasi',
+            'icon' => 'fas fa-bell',
+            'color' => 'blue',
+            'url' => null,
+        ]);
+    }
+
+    public function test_hapus_semua_notifikasi_hanya_menyentuh_milik_sendiri(): void
+    {
+        $company = $this->company('PT Notif');
+        $saya = $this->user($company);
+        $orangLain = $this->user($company);
+
+        $this->notif($saya);
+        $this->notif($saya);
+        $this->notif($orangLain, 'Punya Orang Lain');
+
+        $this->actingAs($saya)->delete('/notifications')
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertSame(0, \App\Models\Notification::where('user_id', $saya->id)->count());
+        $this->assertSame(1, \App\Models\Notification::where('user_id', $orangLain->id)->count(),
+            'Membersihkan kotak sendiri tidak boleh menyentuh milik orang lain');
+    }
+
+    public function test_hapus_semua_notifikasi_lewat_api(): void
+    {
+        $company = $this->company('PT Notif App');
+        $saya = $this->user($company);
+        $orangLain = $this->user($company);
+
+        $this->notif($saya);
+        $this->notif($orangLain);
+
+        $saya->update(['api_token' => \Illuminate\Support\Str::random(64)]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer ' . $saya->api_token,
+            'Accept' => 'application/json',
+        ])->delete('/api/notifications')->assertOk()->assertJson(['success' => true, 'deleted' => 1]);
+
+        $this->assertSame(0, \App\Models\Notification::where('user_id', $saya->id)->count());
+        $this->assertSame(1, \App\Models\Notification::where('user_id', $orangLain->id)->count());
+    }
+
+    public function test_hapus_notifikasi_saat_kosong_tidak_error(): void
+    {
+        $saya = $this->user($this->company('PT Kosong Notif'));
+
+        $this->actingAs($saya)->delete('/notifications')
+            ->assertRedirect()
+            ->assertSessionHas('success');
+    }
+
+    public function test_halaman_notifikasi_menyediakan_konfirmasi_sebelum_menghapus(): void
+    {
+        $saya = $this->user($this->company('PT Konfirmasi'));
+        $this->notif($saya);
+
+        // Penghapusan massal tidak bisa dibatalkan, jadi tombolnya wajib
+        // melewati konfirmasi - bukan langsung mengirim formulir.
+        $html = $this->actingAs($saya)->get('/notifications')->assertOk()->getContent();
+
+        $this->assertStringContainsString('Apakah Anda yakin untuk menghapus semua notifikasi', $html);
+        $this->assertStringContainsString('Iya, Hapus', $html);
+        $this->assertStringContainsString('Batal', $html);
+    }
+
+    // ------------------------------------------- Peringatan kuota menipis
+
+    private function periksa(User $user): void
+    {
+        \App\Models\Notification::createAndCheckQuota($user->fresh());
+    }
+
+    private function adaPeringatan(User $user): bool
+    {
+        return \App\Models\Notification::where('user_id', $user->id)
+            ->where('type', 'quota_low')->exists();
+    }
+
+    public function test_peringatan_kuota_tidak_muncul_saat_masih_lega(): void
+    {
+        // Regresi: ambangnya pernah 1 GB, sama dengan kuota bawaan akun baru,
+        // sehingga peringatan muncul sejak unggahan pertama - saat kuota masih
+        // 96% kosong.
+        $user = $this->user($this->company('PT Lega'), User::ROLE_USER, [
+            'storage_quota' => self::GB,
+            'storage_used' => 41 * 1048576, // 41 MB dari 1 GB
+        ]);
+
+        $this->periksa($user);
+
+        $this->assertFalse($this->adaPeringatan($user),
+            'Sisa 983 MB dari 1 GB bukan kondisi hampir habis');
+    }
+
+    public function test_peringatan_muncul_saat_sisa_di_bawah_50_mb(): void
+    {
+        $user = $this->user($this->company('PT Menipis'), User::ROLE_USER, [
+            'storage_quota' => self::GB,
+            'storage_used' => self::GB - (49 * 1048576), // sisa 49 MB
+        ]);
+
+        $this->periksa($user);
+
+        $this->assertTrue($this->adaPeringatan($user));
+    }
+
+    public function test_peringatan_tepat_di_batas_50_mb_belum_muncul(): void
+    {
+        $user = $this->user($this->company('PT Batas'), User::ROLE_USER, [
+            'storage_quota' => self::GB,
+            'storage_used' => self::GB - \App\Models\Notification::QUOTA_WARNING_THRESHOLD,
+        ]);
+
+        $this->periksa($user);
+
+        $this->assertFalse($this->adaPeringatan($user),
+            'Sisa persis 50 MB belum di bawah ambang');
+    }
+
+    public function test_kuota_habis_diberi_pesan_yang_berbeda(): void
+    {
+        $user = $this->user($this->company('PT Penuh Sesak'), User::ROLE_USER, [
+            'storage_quota' => self::GB,
+            'storage_used' => self::GB,
+        ]);
+
+        $this->periksa($user);
+
+        $notif = \App\Models\Notification::where('user_id', $user->id)
+            ->where('type', 'quota_low')->firstOrFail();
+
+        // "Sisa kuota tinggal 0 B" membingungkan; kondisi penuh perlu kalimat
+        // sendiri berikut jalan keluarnya.
+        $this->assertSame('Kuota Penyimpanan Habis', $notif->title);
+        $this->assertStringContainsString('sudah penuh', $notif->message);
+    }
+
+    public function test_kuota_kecil_tidak_memicu_peringatan_terus_menerus(): void
+    {
+        // Kuota 10 MB selalu di bawah ambang 50 MB, bahkan saat drive kosong.
+        $user = $this->user($this->company('PT Mungil'), User::ROLE_USER, [
+            'storage_quota' => 10 * 1048576,
+            'storage_used' => 0,
+        ]);
+
+        $this->periksa($user);
+        $this->assertFalse($this->adaPeringatan($user));
+
+        // Tetapi saat benar-benar menipis, peringatannya harus tetap datang.
+        $user->update(['storage_used' => 10 * 1048576 - 100]);
+        $this->periksa($user);
+
+        $this->assertTrue($this->adaPeringatan($user));
+    }
+
+    public function test_peringatan_kuota_paling_banyak_sekali_sehari(): void
+    {
+        $user = $this->user($this->company('PT Sekali'), User::ROLE_USER, [
+            'storage_quota' => self::GB,
+            'storage_used' => self::GB - 1048576,
+        ]);
+
+        $this->periksa($user);
+        $this->periksa($user);
+        $this->periksa($user);
+
+        $this->assertSame(1, \App\Models\Notification::where('user_id', $user->id)
+            ->where('type', 'quota_low')->count(),
+            'Mengulang tiap unggahan hanya menenggelamkan notifikasi lain');
+    }
+
     // ------------------------------------------------------------ Akses
 
     public function test_hanya_superadmin_yang_bisa_membuka_kelola_kuota(): void

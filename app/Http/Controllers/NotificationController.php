@@ -49,4 +49,23 @@ class NotificationController extends Controller
 
         return back();
     }
+
+    /**
+     * Hapus seluruh notifikasi milik pengguna.
+     *
+     * Dibatasi pada user_id pemiliknya, bukan truncate: notifikasi milik orang
+     * lain tidak boleh ikut hilang hanya karena satu orang membersihkan
+     * kotaknya sendiri.
+     */
+    public function destroyAll()
+    {
+        $jumlah = Notification::where('user_id', Auth::id())->delete();
+
+        return back()->with(
+            'success',
+            $jumlah > 0
+                ? $jumlah . ' notifikasi berhasil dihapus'
+                : 'Tidak ada notifikasi untuk dihapus'
+        );
+    }
 }

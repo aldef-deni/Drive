@@ -54,6 +54,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/notifications', [ApiNotificationController::class, 'index']);
     Route::post('/notifications/{notification}/read', [ApiNotificationController::class, 'markRead']);
     Route::post('/notifications/read-all', [ApiNotificationController::class, 'markAllRead']);
+    Route::delete('/notifications', [ApiNotificationController::class, 'destroyAll']);
 
     // Admin
     Route::prefix('admin')->middleware('admin')->group(function () {
