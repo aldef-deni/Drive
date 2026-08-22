@@ -27,9 +27,49 @@
         </div>
 
         <form action="{{ $baru ? route('admin.companies.store') : route('admin.companies.update', $company) }}"
-              method="POST" class="p-6 space-y-5">
+              method="POST" enctype="multipart/form-data" class="p-6 space-y-5">
             @csrf
             @if(!$baru) @method('PUT') @endif
+
+            {{-- Logo: dipakai di sidebar seluruh pengguna perusahaan ini --}}
+            <div>
+                <label class="label">Logo Perusahaan <span class="text-slate-500 font-normal">(opsional)</span></label>
+
+                <div class="flex items-center gap-4">
+                    <div id="logoPratinjau"
+                         class="w-16 h-16 rounded-xl bg-navy-900 ring-1 ring-navy-600 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        @if($logoUrl = $company->logoUrl())
+                        <img src="{{ $logoUrl }}" alt="Logo {{ $company->name }}" class="w-full h-full object-contain">
+                        @else
+                        <i class="fas fa-image text-slate-600 text-xl"></i>
+                        @endif
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <input type="file" id="logo" name="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                            onchange="pratinjauLogo(this)"
+                            class="block w-full text-sm text-slate-400
+                                   file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0
+                                   file:text-sm file:font-medium file:bg-navy-600 file:text-white
+                                   hover:file:bg-navy-500 file:cursor-pointer">
+                        <p class="text-xs text-slate-500 mt-1.5">
+                            PNG, JPG, WEBP, atau SVG. Maksimal 1 MB. Paling rapi bila berbentuk persegi.
+                        </p>
+                        @error('logo')<p class="text-sm text-red-400 mt-1.5">{{ $message }}</p>@enderror
+
+                        @if(!$baru && $company->logo)
+                        <label class="flex items-center gap-2 mt-2 cursor-pointer">
+                            <input type="checkbox" name="hapus_logo" value="1" class="w-4 h-4 rounded accent-[#d4a843]">
+                            <span class="text-xs text-slate-400">Hapus logo, kembali ke logo bawaan</span>
+                        </label>
+                        @endif
+                    </div>
+                </div>
+
+                <p class="text-xs text-slate-500 mt-3">
+                    Logo ini menggantikan logo di sidebar untuk seluruh admin dan pengguna perusahaan ini.
+                </p>
+            </div>
 
             <div>
                 <label class="label" for="name">Nama Perusahaan</label>
@@ -122,3 +162,19 @@
     @endif
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    // Perlihatkan hasilnya sebelum disimpan - logo salah potong baru ketahuan
+    // setelah tampil di sidebar kalau tidak begini.
+    function pratinjauLogo(input) {
+        const berkas = input.files?.[0];
+        if (!berkas) return;
+
+        const kotak = document.getElementById('logoPratinjau');
+        const url = URL.createObjectURL(berkas);
+
+        kotak.innerHTML = '<img src="' + url + '" alt="" class="w-full h-full object-contain">';
+    }
+</script>
+@endpush

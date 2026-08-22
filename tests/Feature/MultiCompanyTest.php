@@ -274,6 +274,131 @@ class MultiCompanyTest extends TestCase
         $this->assertTrue($admin->is_active, 'Admin buatan superadmin langsung aktif');
     }
 
+    // ------------------------------------------------ Logo perusahaan
+
+    /** Bersihkan logo yang tertulis ke disk selama pengujian. */
+    private function bersihkanLogo(): void
+    {
+        $dir = storage_path(Company::LOGO_DIR);
+
+        foreach (glob($dir . '/*') ?: [] as $berkas) {
+            @unlink($berkas);
+        }
+    }
+
+    public function test_logo_perusahaan_diunggah_dan_disajikan_lewat_route(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+
+        $this->actingAs($super)->post('/admin/companies', [
+            'name' => 'PT Berlogo',
+            'default_quota_gb' => 1,
+            'is_active' => 1,
+            'logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.png', 120, 120),
+        ])->assertRedirect(route('admin.companies.index'));
+
+        $company = Company::where('name', 'PT Berlogo')->firstOrFail();
+
+        $this->assertNotNull($company->logo);
+        $this->assertNotNull($company->logoPath(), 'Berkasnya harus benar-benar ada di disk');
+
+        // Disajikan lewat route, bukan public/storage - symlink tidak bisa
+        // diandalkan di cPanel.
+        $this->assertStringContainsString('/company-logo/' . $company->id, $company->logoUrl());
+
+        $this->get($company->logoUrl())->assertOk();
+
+        $this->bersihkanLogo();
+    }
+
+    public function test_logo_perusahaan_menggantikan_logo_sidebar_penggunanya(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+
+        $this->actingAs($super)->post('/admin/companies', [
+            'name' => 'PT Sidebar',
+            'default_quota_gb' => 1,
+            'is_active' => 1,
+            'logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.png', 120, 120),
+        ]);
+
+        $berlogo = Company::where('name', 'PT Sidebar')->firstOrFail();
+        $polos = $this->company('PT Polos');
+
+        // Pengguna biasa di perusahaan berlogo melihat logo itu, bukan bawaan.
+        $anggota = $this->user($berlogo);
+        $this->actingAs($anggota)->get('/drive')
+            ->assertOk()
+            ->assertSee('/company-logo/' . $berlogo->id)
+            ->assertSee('PT Sidebar');
+
+        // Admin perusahaan yang sama juga.
+        $admin = $this->user($berlogo, User::ROLE_ADMIN);
+        $this->actingAs($admin)->get('/admin')
+            ->assertOk()
+            ->assertSee('/company-logo/' . $berlogo->id);
+
+        // Perusahaan lain tidak ikut terbawa.
+        $lain = $this->user($polos);
+        $this->actingAs($lain)->get('/drive')
+            ->assertOk()
+            ->assertDontSee('/company-logo/' . $berlogo->id)
+            ->assertSee('logo-dekorasi.png');
+
+        $this->bersihkanLogo();
+    }
+
+    public function test_logo_perusahaan_bisa_diganti_dan_dihapus(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $company = $this->company('PT Ganti');
+
+        $unggah = fn () => $this->actingAs($super)->put('/admin/companies/' . $company->id, [
+            'name' => 'PT Ganti',
+            'default_quota_gb' => 1,
+            'is_active' => 1,
+            'logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.png', 100, 100),
+        ]);
+
+        $unggah();
+        $lama = $company->fresh()->logoPath();
+        $this->assertNotNull($lama);
+
+        // Mengganti logo tidak boleh meninggalkan berkas lama menumpuk.
+        sleep(1); // nama berkas memakai detik; pastikan berbeda
+        $unggah();
+        $baru = $company->fresh()->logoPath();
+
+        $this->assertNotSame($lama, $baru);
+        $this->assertFileDoesNotExist($lama, 'Logo lama harus ikut dibuang');
+
+        $this->actingAs($super)->put('/admin/companies/' . $company->id, [
+            'name' => 'PT Ganti',
+            'default_quota_gb' => 1,
+            'is_active' => 1,
+            'hapus_logo' => 1,
+        ])->assertRedirect();
+
+        $this->assertNull($company->fresh()->logo);
+        $this->assertFileDoesNotExist($baru);
+
+        $this->bersihkanLogo();
+    }
+
+    public function test_logo_menolak_berkas_yang_bukan_gambar(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+
+        $this->actingAs($super)->post('/admin/companies', [
+            'name' => 'PT Nakal',
+            'default_quota_gb' => 1,
+            'is_active' => 1,
+            'logo' => \Illuminate\Http\UploadedFile::fake()->create('skrip.php', 10, 'application/x-php'),
+        ])->assertSessionHasErrors('logo');
+
+        $this->assertDatabaseMissing('companies', ['name' => 'PT Nakal']);
+    }
+
     // ------------------------------------- Pembuatan akun oleh superadmin
 
     public function test_superadmin_membuat_akun_yang_langsung_aktif(): void

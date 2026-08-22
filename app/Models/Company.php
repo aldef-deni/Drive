@@ -21,6 +21,7 @@ class Company extends Model
     protected $fillable = [
         'name',
         'slug',
+        'logo',
         'email',
         'phone',
         'address',
@@ -34,6 +35,43 @@ class Company extends Model
         'max_users' => 'integer',
         'is_active' => 'boolean',
     ];
+
+    /** Direktori penyimpanan logo, di luar public/ agar tidak butuh symlink. */
+    public const LOGO_DIR = 'app/public/company-logos';
+
+    /**
+     * Lokasi berkas logo di disk, atau null bila tidak ada/hilang.
+     */
+    public function logoPath(): ?string
+    {
+        if (!$this->logo) {
+            return null;
+        }
+
+        // Nama berkas dinormalkan: data lama sempat menyimpan jalur lengkap.
+        $nama = basename(str_replace(chr(92), '/', $this->logo));
+        $path = storage_path(self::LOGO_DIR . '/' . $nama);
+
+        return is_file($path) ? $path : null;
+    }
+
+    /**
+     * Alamat untuk menampilkan logo.
+     *
+     * Lewat route, bukan asset('storage/...'), karena symlink tidak bisa
+     * diandalkan di cPanel - sama seperti penyajian avatar.
+     */
+    public function logoUrl(): ?string
+    {
+        if (!$this->logoPath()) {
+            return null;
+        }
+
+        return route('company.logo', [
+            'company' => $this->id,
+            'v' => $this->updated_at?->timestamp ?? 0,
+        ]);
+    }
 
     protected static function booted(): void
     {

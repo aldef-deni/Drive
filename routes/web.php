@@ -112,6 +112,9 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
 // Avatar (publik, tidak bergantung pada symlink public/storage)
 Route::get('/avatar/{user}', [ProfileController::class, 'avatar'])->name('avatar.show');
 
+// Logo perusahaan, disajikan tanpa symlink seperti halnya avatar.
+Route::get('/company-logo/{company}', [CompanyController::class, 'logo'])->name('company.logo');
+
 // Public share routes
 Route::get('/share/{token}', [ShareController::class, 'show'])->name('share.show');
 Route::post('/share/{token}/download', [ShareController::class, 'download'])->name('share.download');

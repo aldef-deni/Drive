@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -57,6 +58,7 @@ class CompanyController extends Controller
         $data = $this->validated($request);
 
         $company = Company::create($data);
+        $this->simpanLogo($request, $company);
 
         return redirect()->route('admin.companies.index')
             ->with('success', 'Perusahaan ' . $company->name . ' berhasil ditambahkan');
@@ -70,6 +72,12 @@ class CompanyController extends Controller
     public function update(Request $request, Company $company)
     {
         $company->update($this->validated($request, $company));
+
+        if ($request->boolean('hapus_logo')) {
+            $this->hapusLogo($company);
+        }
+
+        $this->simpanLogo($request, $company);
 
         return redirect()->route('admin.companies.index')
             ->with('success', 'Perusahaan ' . $company->name . ' berhasil diperbarui');
@@ -102,6 +110,7 @@ class CompanyController extends Controller
         }
 
         $nama = $company->name;
+        $this->hapusLogo($company);
         $company->delete();
 
         return redirect()->route('admin.companies.index')
@@ -146,6 +155,69 @@ class CompanyController extends Controller
     /**
      * Aturan validasi bersama untuk tambah dan ubah.
      */
+    /**
+     * Sajikan berkas logo.
+     *
+     * Sengaja di luar middleware admin: logo ini tampil di sidebar setiap
+     * pengguna perusahaan yang bersangkutan, bukan cuma di halaman admin.
+     */
+    public function logo(Company $company)
+    {
+        $path = $company->logoPath();
+
+        abort_if($path === null, 404);
+
+        return response()->file($path, [
+            'Cache-Control' => 'public, max-age=86400',
+            // SVG boleh diunggah, dan SVG bisa memuat skrip. Berkas ini
+            // disajikan dari origin yang sama dengan aplikasi, jadi kalau
+            // dibuka langsung skripnya akan berjalan atas nama aplikasi.
+            // Dua header ini mematikan kemungkinan itu.
+            'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    /**
+     * Simpan logo yang diunggah, kalau ada.
+     *
+     * Logo lama selalu dibuang agar direktori tidak menumpuk berkas yatim
+     * setiap kali perusahaan mengganti logonya.
+     */
+    private function simpanLogo(Request $request, Company $company): void
+    {
+        if (!$request->hasFile('logo')) {
+            return;
+        }
+
+        $this->hapusLogo($company);
+
+        $berkas = $request->file('logo');
+        $nama = $company->id . '_' . time() . '.' . strtolower($berkas->getClientOriginalExtension());
+
+        $direktori = storage_path(Company::LOGO_DIR);
+        if (!is_dir($direktori)) {
+            mkdir($direktori, 0755, true);
+        }
+
+        $berkas->move($direktori, $nama);
+
+        $company->update(['logo' => $nama]);
+    }
+
+    private function hapusLogo(Company $company): void
+    {
+        $path = $company->logoPath();
+
+        if ($path) {
+            File::delete($path);
+        }
+
+        if ($company->logo) {
+            $company->update(['logo' => null]);
+        }
+    }
+
     private function validated(Request $request, ?Company $company = null): array
     {
         $data = $request->validate([
@@ -157,10 +229,12 @@ class CompanyController extends Controller
             'default_quota_gb' => ['required', 'numeric', 'min:0.1', 'max:10240'],
             'max_users' => ['nullable', 'integer', 'min:1', 'max:100000'],
             'is_active' => ['nullable', 'boolean'],
+            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,svg', 'max:1024'],
         ], [], [
             'name' => 'nama perusahaan',
             'default_quota_gb' => 'kuota bawaan',
             'max_users' => 'batas jumlah akun',
+            'logo' => 'logo perusahaan',
         ]);
 
         return [

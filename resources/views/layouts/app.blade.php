@@ -230,11 +230,22 @@
         @auth
         <aside id="sidebar" class="sidebar-mobile fixed md:static inset-y-0 left-0 w-64 gradient-bg text-white flex-shrink-0 flex flex-col z-50 border-r border-navy-600/70">
             <!-- Logo -->
+            @php
+                // Perusahaan pengguna menggantikan identitas bawaan bila punya
+                // logo sendiri. Superadmin tidak terikat perusahaan, jadi tetap
+                // melihat identitas Dekorasi Drive.
+                $perusahaan = auth()->user()?->company;
+                $logoPerusahaan = $perusahaan?->logoUrl();
+            @endphp
             <div class="p-4 md:p-6 border-b border-white/10 flex items-center justify-between">
                 <a href="{{ route('drive.index') }}" class="flex items-center gap-3 min-w-0">
-                    <img src="{{ asset('logo-dekorasi.png') }}" alt="Logo Dekorasi" class="w-9 h-9 md:w-10 md:h-10 rounded-xl ring-1 ring-gold-500/40">
+                    <img src="{{ $logoPerusahaan ?? asset('logo-dekorasi.png') }}"
+                         alt="{{ $logoPerusahaan ? 'Logo ' . $perusahaan->name : 'Logo Dekorasi' }}"
+                         class="w-9 h-9 md:w-10 md:h-10 rounded-xl ring-1 ring-gold-500/40 {{ $logoPerusahaan ? 'object-contain bg-white/5' : '' }}">
                     <span class="min-w-0">
-                        <span class="block font-bold text-base leading-tight truncate">Dekorasi Drive</span>
+                        <span class="block font-bold text-base leading-tight truncate">
+                            {{ $logoPerusahaan ? $perusahaan->name : 'Dekorasi Drive' }}
+                        </span>
                         <span class="block text-[11px] text-white/40 tracking-wide">Penyimpanan Aman</span>
                     </span>
                 </a>

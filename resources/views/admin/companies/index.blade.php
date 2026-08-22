@@ -82,10 +82,17 @@
         @endphp
         <div class="p-4 md:p-5 hover:bg-navy-700/40 transition">
             <div class="flex items-start gap-4">
-                {{-- Inisial --}}
-                <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-lg
-                    {{ $company->is_active ? 'bg-gradient-to-br from-gold-500 to-gold-600 text-navy-900' : 'bg-navy-700 text-slate-500' }}">
+                {{-- Logo, atau inisial bila belum diunggah --}}
+                @php $logoUrl = $company->logoUrl(); @endphp
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-lg overflow-hidden
+                    @if($logoUrl) bg-navy-900 ring-1 ring-navy-600
+                    @elseif($company->is_active) bg-gradient-to-br from-gold-500 to-gold-600 text-navy-900
+                    @else bg-navy-700 text-slate-500 @endif">
+                    @if($logoUrl)
+                    <img src="{{ $logoUrl }}" alt="Logo {{ $company->name }}" class="w-full h-full object-contain">
+                    @else
                     {{ strtoupper(substr($company->name, 0, 1)) }}
+                    @endif
                 </div>
 
                 <div class="flex-1 min-w-0">
