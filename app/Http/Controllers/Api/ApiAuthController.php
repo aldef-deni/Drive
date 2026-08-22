@@ -56,6 +56,7 @@ class ApiAuthController extends Controller
                 'company' => $user->company ? [
                     'id' => $user->company->id,
                     'name' => $user->company->name,
+                    'logo' => $user->company->logoUrl(),
                 ] : null,
                 'avatar' => $user->avatarUrl(),
                 'storage_quota' => $user->storage_quota,
@@ -142,8 +143,13 @@ class ApiAuthController extends Controller
             'success' => true,
             'companies' => Company::where('is_active', true)
                 ->orderBy('name')
-                ->get(['id', 'name'])
-                ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name]),
+                ->get()
+                ->map(fn ($c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'logo' => $c->logoUrl(),
+                    'quota_gb' => $c->defaultQuotaGb(),
+                ]),
         ]);
     }
 
@@ -174,6 +180,7 @@ class ApiAuthController extends Controller
                 'company' => $user->company ? [
                     'id' => $user->company->id,
                     'name' => $user->company->name,
+                    'logo' => $user->company->logoUrl(),
                 ] : null,
                 'avatar' => $user->avatarUrl(),
                 'storage_quota' => $user->storage_quota,

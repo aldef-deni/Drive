@@ -274,6 +274,138 @@ class MultiCompanyTest extends TestCase
         $this->assertTrue($admin->is_active, 'Admin buatan superadmin langsung aktif');
     }
 
+    // ------------------------------------------- Kontrak API aplikasi
+
+    /** Kepala permintaan untuk pengguna yang sudah punya token. */
+    private function bearer(User $user): array
+    {
+        if (!$user->api_token) {
+            $user->update(['api_token' => \Illuminate\Support\Str::random(64)]);
+        }
+
+        return [
+            'Authorization' => 'Bearer ' . $user->fresh()->api_token,
+            'Accept' => 'application/json',
+        ];
+    }
+
+    public function test_api_companies_memberi_data_yang_dibutuhkan_form_daftar(): void
+    {
+        $this->company('PT Alpha', ['default_quota' => 3 * 1073741824]);
+        $this->company('PT Mati', ['is_active' => false]);
+
+        $res = $this->withHeaders(['Accept' => 'application/json'])
+            ->get('/api/companies')->assertOk()->json();
+
+        $nama = array_column($res['companies'], 'name');
+        $this->assertContains('PT Alpha', $nama);
+        $this->assertNotContains('PT Mati', $nama, 'Perusahaan nonaktif tidak boleh bisa dipilih');
+
+        // Aplikasi menampilkan logo dan kuota di daftar pilihan; tanpa kunci
+        // ini barisnya kosong tanpa pesan error apa pun.
+        $alpha = collect($res['companies'])->firstWhere('name', 'PT Alpha');
+        $this->assertArrayHasKey('logo', $alpha);
+        $this->assertArrayHasKey('quota_gb', $alpha);
+        $this->assertSame('3', $alpha['quota_gb']);
+    }
+
+    public function test_api_login_dan_me_membawa_identitas_perusahaan(): void
+    {
+        $company = $this->company('PT Identitas');
+        $user = $this->user($company, User::ROLE_USER, ['is_active' => true]);
+        $user->update(['password' => \Illuminate\Support\Facades\Hash::make('rahasia12345')]);
+
+        $login = $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/login', ['email' => $user->email, 'password' => 'rahasia12345'])
+            ->assertOk()->json();
+
+        foreach (['role', 'role_label', 'is_superadmin', 'company'] as $kunci) {
+            $this->assertArrayHasKey($kunci, $login['user'], "Kunci {$kunci} dipakai aplikasi");
+        }
+
+        $this->assertSame('PT Identitas', $login['user']['company']['name']);
+        $this->assertArrayHasKey('logo', $login['user']['company']);
+
+        $me = $this->withHeaders($this->bearer($user))->get('/api/me')->assertOk()->json();
+
+        $this->assertSame('PT Identitas', $me['user']['company']['name']);
+        $this->assertArrayHasKey('logo', $me['user']['company']);
+    }
+
+    public function test_api_admin_users_menyebut_peran_dan_perusahaan(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $this->user($this->company('PT Satu'), User::ROLE_ADMIN, ['name' => 'Admin Satu']);
+
+        $res = $this->withHeaders($this->bearer($super))
+            ->get('/api/admin/users')->assertOk()->json();
+
+        $adminSatu = collect($res['users'])->firstWhere('name', 'Admin Satu');
+
+        $this->assertSame('PT Satu', $adminSatu['company'],
+            'Superadmin melihat lintas perusahaan, jadi asalnya harus jelas');
+        $this->assertSame('Admin', $adminSatu['role_label']);
+    }
+
+    public function test_api_hidden_keyword_hanya_membuka_nilainya_untuk_superadmin(): void
+    {
+        \App\Models\Setting::setHiddenKeyword('kunciAplikasi9');
+
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $admin = $this->user($this->company('PT Rahasia'), User::ROLE_ADMIN);
+
+        $res = $this->withHeaders($this->bearer($super))
+            ->get('/api/admin/hidden-keyword')->assertOk()->json();
+
+        $this->assertTrue($res['can_reveal']);
+        $this->assertSame('kunciAplikasi9', $res['keyword']);
+
+        // Guard menyimpan pengguna yang sudah terselesaikan; di produksi tiap
+        // permintaan memakai container baru, di pengujian tidak.
+        $this->app['auth']->forgetGuards();
+
+        $res = $this->withHeaders($this->bearer($admin))
+            ->get('/api/admin/hidden-keyword')->assertOk()->json();
+
+        $this->assertFalse($res['can_reveal']);
+        $this->assertNull($res['keyword'], 'Admin perusahaan tidak boleh melihat nilainya');
+    }
+
+    public function test_api_register_menolak_pendaftaran_tanpa_perusahaan(): void
+    {
+        // Aplikasi versi lama tidak mengirim company_id; pastikan penolakannya
+        // jelas, bukan error server.
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/register', [
+                'name' => 'Tanpa Perusahaan',
+                'email' => 'tanpa@dekorasi.test',
+                'password' => 'rahasia12345',
+                'password_confirmation' => 'rahasia12345',
+            ])->assertStatus(422);
+
+        $this->assertDatabaseMissing('users', ['email' => 'tanpa@dekorasi.test']);
+    }
+
+    public function test_api_register_lewat_aplikasi_mengikat_ke_perusahaan(): void
+    {
+        $company = $this->company('PT Aplikasi', ['default_quota' => 2 * 1073741824]);
+
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/register', [
+                'name' => 'Pendaftar App',
+                'email' => 'app@dekorasi.test',
+                'password' => 'rahasia12345',
+                'password_confirmation' => 'rahasia12345',
+                'company_id' => $company->id,
+            ])->assertOk()->assertJson(['success' => true]);
+
+        $baru = User::where('email', 'app@dekorasi.test')->firstOrFail();
+
+        $this->assertSame($company->id, $baru->company_id);
+        $this->assertFalse($baru->is_active, 'Pendaftar aplikasi tetap menunggu verifikasi');
+        $this->assertSame(2 * 1073741824, $baru->storage_quota);
+    }
+
     // ------------------------------------------------ Logo perusahaan
 
     /** Bersihkan logo yang tertulis ke disk selama pengujian. */

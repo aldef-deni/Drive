@@ -69,12 +69,17 @@ class ApiAdminController extends Controller
 
     public function users()
     {
-        $users = $this->lingkup()->orderBy('created_at', 'desc')->get()->map(function ($u) {
+        // with('company'): tanpa ini nama perusahaan memicu satu query per baris.
+        $users = $this->lingkup()->with('company')->orderBy('created_at', 'desc')->get()->map(function ($u) {
             return [
                 'id' => $u->id,
                 'name' => $u->name,
                 'email' => $u->email,
                 'role' => $u->role,
+                'role_label' => $u->roleLabel(),
+                // Superadmin melihat lintas perusahaan, jadi tanpa penanda ini
+                // dua nama yang mirip dari perusahaan berbeda tak terbedakan.
+                'company' => $u->company?->name,
                 'avatar' => $u->avatarUrl(),
                 'storage_quota' => $u->storage_quota,
                 'storage_quota_gb' => round($u->storage_quota / 1073741824, 2),
@@ -201,10 +206,17 @@ class ApiAdminController extends Controller
      */
     public function hiddenKeyword()
     {
+        // Kata kuncinya hanya diperlihatkan kepada superadministrator, sama
+        // seperti di dasbor web. Admin perusahaan tetap boleh menggantinya.
+        $terlihat = request()->user()->isSuperAdmin();
+
         return response()->json([
             'success' => true,
-            'is_default' => Setting::get(Setting::HIDDEN_KEYWORD) === null,
+            'is_default' => Setting::bacaLangsung(Setting::HIDDEN_KEYWORD) === null,
             'updated_at' => Setting::hiddenKeywordUpdatedAt()?->toISOString(),
+            'can_reveal' => $terlihat,
+            'keyword' => $terlihat ? Setting::hiddenKeywordPlain() : null,
+            'state' => Setting::hiddenKeywordState(),
         ]);
     }
 
