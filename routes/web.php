@@ -68,6 +68,14 @@ Route::prefix('drive')->middleware('auth')->group(function () {
 Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('admin.index');
     Route::get('/users', [AdminController::class, 'users'])->name('admin.users');
+
+    // Pembuatan akun langsung oleh superadministrator - tanpa antre verifikasi.
+    // Didaftarkan sebelum rute ber-parameter agar "create" tidak terbaca sebagai id.
+    Route::middleware('superadmin')->group(function () {
+        Route::get('/users/create', [AdminController::class, 'createUser'])->name('admin.users.create');
+        Route::post('/users', [AdminController::class, 'storeUser'])->name('admin.users.store');
+    });
+
     Route::get('/users/{user}/edit', [AdminController::class, 'editUser'])->name('admin.users.edit');
     Route::put('/users/{user}', [AdminController::class, 'updateUser'])->name('admin.users.update');
     Route::delete('/users/{user}', [AdminController::class, 'deleteUser'])->name('admin.users.delete');

@@ -274,6 +274,136 @@ class MultiCompanyTest extends TestCase
         $this->assertTrue($admin->is_active, 'Admin buatan superadmin langsung aktif');
     }
 
+    // ------------------------------------- Pembuatan akun oleh superadmin
+
+    public function test_superadmin_membuat_akun_yang_langsung_aktif(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $company = $this->company('PT Terima', ['default_quota' => 3 * 1073741824]);
+
+        $this->actingAs($super)->get('/admin/users/create')
+            ->assertOk()
+            ->assertSee('PT Terima');
+
+        $this->actingAs($super)->post('/admin/users', [
+            'name' => 'Karyawan Baru',
+            'email' => 'karyawan@dekorasi.test',
+            'company_id' => $company->id,
+            'role' => User::ROLE_USER,
+            'password' => 'rahasia12345',
+            'password_confirmation' => 'rahasia12345',
+        ])->assertRedirect(route('admin.users'))->assertSessionHas('success');
+
+        $baru = User::where('email', 'karyawan@dekorasi.test')->firstOrFail();
+
+        $this->assertTrue($baru->is_active, 'Akun buatan superadmin tidak perlu diverifikasi lagi');
+        $this->assertSame(User::ROLE_USER, $baru->role);
+        $this->assertSame($company->id, $baru->company_id);
+        $this->assertSame(3 * 1073741824, $baru->storage_quota, 'Kuota mengikuti perusahaan');
+
+        // Langsung bisa dipakai, tanpa langkah tambahan apa pun.
+        $this->post('/logout');
+        $this->assertTrue(auth()->attempt([
+            'email' => 'karyawan@dekorasi.test',
+            'password' => 'rahasia12345',
+        ]));
+    }
+
+    public function test_superadmin_bisa_membuat_akun_berperan_admin(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $company = $this->company('PT Kelola');
+
+        $this->actingAs($super)->post('/admin/users', [
+            'name' => 'Admin Baru',
+            'email' => 'adminbaru2@dekorasi.test',
+            'company_id' => $company->id,
+            'role' => User::ROLE_ADMIN,
+            'password' => 'rahasia12345',
+            'password_confirmation' => 'rahasia12345',
+        ])->assertRedirect(route('admin.users'));
+
+        $admin = User::where('email', 'adminbaru2@dekorasi.test')->firstOrFail();
+
+        $this->assertSame(User::ROLE_ADMIN, $admin->role);
+        $this->assertTrue($admin->is_active);
+    }
+
+    public function test_peran_superadmin_tidak_bisa_dibuat_lewat_formulir(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $company = $this->company('PT Coba');
+
+        // Peran tertinggi hanya boleh lahir dari migrasi; kalau bisa dibuat
+        // lewat formulir, isolasi antar perusahaan kehilangan artinya.
+        $this->actingAs($super)->post('/admin/users', [
+            'name' => 'Calon Super',
+            'email' => 'calonsuper@dekorasi.test',
+            'company_id' => $company->id,
+            'role' => User::ROLE_SUPERADMIN,
+            'password' => 'rahasia12345',
+            'password_confirmation' => 'rahasia12345',
+        ])->assertSessionHasErrors('role');
+
+        $this->assertDatabaseMissing('users', ['email' => 'calonsuper@dekorasi.test']);
+    }
+
+    public function test_tambah_user_hanya_untuk_superadmin(): void
+    {
+        $company = $this->company('PT Batas');
+        $admin = $this->user($company, User::ROLE_ADMIN);
+        $biasa = $this->user($company);
+
+        foreach ([$admin, $biasa] as $pelaku) {
+            $this->actingAs($pelaku)->get('/admin/users/create')->assertForbidden();
+
+            $this->actingAs($pelaku)->post('/admin/users', [
+                'name' => 'Selundupan',
+                'email' => 'selundupan@dekorasi.test',
+                'company_id' => $company->id,
+                'role' => User::ROLE_ADMIN,
+                'password' => 'rahasia12345',
+                'password_confirmation' => 'rahasia12345',
+            ])->assertForbidden();
+        }
+
+        $this->assertDatabaseMissing('users', ['email' => 'selundupan@dekorasi.test']);
+
+        // Tombolnya pun tidak boleh terlihat oleh admin perusahaan.
+        $this->actingAs($admin)->get('/admin/users')->assertOk()->assertDontSee('Tambah User');
+    }
+
+    public function test_akun_baru_ditolak_bila_perusahaan_penuh_atau_nonaktif(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+
+        $penuh = $this->company('PT Penuh', ['max_users' => 1]);
+        $this->user($penuh);
+
+        $this->actingAs($super)->post('/admin/users', [
+            'name' => 'Kelebihan',
+            'email' => 'kelebihan@dekorasi.test',
+            'company_id' => $penuh->id,
+            'role' => User::ROLE_USER,
+            'password' => 'rahasia12345',
+            'password_confirmation' => 'rahasia12345',
+        ])->assertSessionHasErrors('company_id');
+
+        $mati = $this->company('PT Mati', ['is_active' => false]);
+
+        $this->actingAs($super)->post('/admin/users', [
+            'name' => 'Tetap Ditolak',
+            'email' => 'ditolak@dekorasi.test',
+            'company_id' => $mati->id,
+            'role' => User::ROLE_USER,
+            'password' => 'rahasia12345',
+            'password_confirmation' => 'rahasia12345',
+        ])->assertSessionHasErrors('company_id');
+
+        $this->assertDatabaseMissing('users', ['email' => 'kelebihan@dekorasi.test']);
+        $this->assertDatabaseMissing('users', ['email' => 'ditolak@dekorasi.test']);
+    }
+
     // ------------------------------------------------------------ Registrasi
 
     public function test_daftar_perusahaan_di_form_daftar_hanya_berisi_perusahaan(): void

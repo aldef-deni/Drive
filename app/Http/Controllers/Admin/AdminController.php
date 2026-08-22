@@ -234,6 +234,74 @@ class AdminController extends Controller
     /**
      * Halaman pengaturan kata kunci rahasia (Hidden System).
      */
+    /**
+     * Formulir pembuatan akun oleh superadministrator.
+     */
+    public function createUser()
+    {
+        return view('admin.create-user', [
+            'companies' => Company::where('is_active', true)->orderBy('name')->get(),
+        ]);
+    }
+
+    /**
+     * Simpan akun buatan superadministrator.
+     *
+     * Akun langsung aktif: verifikasi ada untuk menyaring pendaftar dari luar,
+     * sedangkan akun ini dibuat oleh orang yang berwenang menyetujuinya.
+     */
+    public function storeUser(Request $request)
+    {
+        $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'company_id' => ['required', 'exists:companies,id'],
+            // Superadministrator tidak bisa dibuat lewat formulir - satu-satunya
+            // jalan adalah migrasi, supaya peran tertinggi tidak bisa diperbanyak.
+            'role' => ['required', 'in:' . User::ROLE_ADMIN . ',' . User::ROLE_USER],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ], [], [
+            'company_id' => 'perusahaan',
+            'role' => 'peran',
+        ]);
+
+        $company = Company::find($request->company_id);
+
+        if (!$company->is_active) {
+            return back()->withInput()
+                ->withErrors(['company_id' => 'Perusahaan ini sedang nonaktif.']);
+        }
+
+        if ($company->isFull()) {
+            return back()->withInput()
+                ->withErrors(['company_id' => 'Jumlah akun di perusahaan ini sudah mencapai batas maksimal.']);
+        }
+
+        $user = User::create([
+            'company_id' => $company->id,
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'role' => $request->role,
+            'storage_quota' => $company->default_quota,
+            'is_active' => true,
+        ]);
+
+        Notification::create([
+            'user_id' => $user->id,
+            'type'    => 'account_created',
+            'title'   => 'Akun Anda Sudah Aktif',
+            'message' => 'Akun Anda dibuat oleh administrator di ' . $company->name
+                . ' dengan kuota ' . User::formatStorageSize($company->default_quota) . '.',
+            'icon'    => 'fas fa-circle-check',
+            'color'   => 'green',
+            'url'     => null,
+        ]);
+
+        return redirect()->route('admin.users')
+            ->with('success', 'Akun ' . $user->name . ' (' . $user->roleLabel() . ') berhasil dibuat dan langsung aktif');
+    }
+
     public function hiddenSystem()
     {
         // Kata kunci hanya diperlihatkan kepada superadministrator. Admin
