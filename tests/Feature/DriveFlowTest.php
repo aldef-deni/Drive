@@ -537,6 +537,53 @@ class DriveFlowTest extends TestCase
             ->assertDontSee('Kata kunci ini dari versi lama');
     }
 
+    public function test_kata_kunci_bisa_dilihat_dan_ditetapkan_lewat_perintah_server(): void
+    {
+        // Jalur ini ada supaya kegagalan di sisi web (cache, opcache, sesi)
+        // tidak pernah menjadi jalan buntu: server selalu bisa dipakai langsung.
+        $this->artisan('drive:hidden-keyword')
+            ->expectsOutputToContain('belum pernah diganti')
+            ->expectsOutputToContain(Setting::DEFAULT_HIDDEN_KEYWORD)
+            ->assertSuccessful();
+
+        $this->artisan('drive:hidden-keyword', ['keyword' => 'lewatServer7'])
+            ->assertSuccessful();
+
+        $this->assertSame('lewatServer7', Setting::hiddenKeywordPlain());
+        $this->assertTrue(Setting::matchesHiddenKeyword('lewatServer7'));
+
+        $this->artisan('drive:hidden-keyword')
+            ->expectsOutputToContain('terenkripsi')
+            ->expectsOutputToContain('lewatServer7')
+            ->assertSuccessful();
+
+        // Kata kunci bermasalah ditolak sebelum sempat tersimpan.
+        $this->artisan('drive:hidden-keyword', ['keyword' => 'ada spasi'])->assertFailed();
+        $this->artisan('drive:hidden-keyword', ['keyword' => 'ab'])->assertFailed();
+
+        $this->assertSame('lewatServer7', Setting::hiddenKeywordPlain());
+    }
+
+    public function test_tampilan_kata_kunci_tidak_terpengaruh_cache_basi(): void
+    {
+        Setting::setHiddenKeyword('kunciAsli33');
+
+        // Tiru cache yang tertinggal dari sebelum kode ini dipasang: kalau
+        // tampilannya ikut membaca cache, superadmin melihat keadaan lama.
+        \Illuminate\Support\Facades\Cache::forever('setting:' . Setting::HIDDEN_KEYWORD, [
+            'value' => Hash::make('kunciUsang'),
+        ]);
+
+        $this->assertSame('kunciAsli33', Setting::hiddenKeywordPlain());
+        $this->assertSame(Setting::STATE_READABLE, Setting::hiddenKeywordState());
+
+        $super = $this->makeUser(['role' => User::ROLE_SUPERADMIN, 'company_id' => null]);
+
+        $this->actingAs($super)->get('/admin/hidden-system')
+            ->assertOk()
+            ->assertSee('kunciAsli33');
+    }
+
     public function test_kata_kunci_gagal_didekripsi_dibedakan_dari_hash_lama(): void
     {
         Setting::setHiddenKeyword('kunciSah55');

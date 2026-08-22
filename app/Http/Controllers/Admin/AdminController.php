@@ -241,7 +241,7 @@ class AdminController extends Controller
         $terlihat = Auth::user()->isSuperAdmin();
 
         return view('admin.hidden-system', [
-            'isDefault' => Setting::get(Setting::HIDDEN_KEYWORD) === null,
+            'isDefault' => Setting::bacaLangsung(Setting::HIDDEN_KEYWORD) === null,
             'updatedAt' => Setting::hiddenKeywordUpdatedAt(),
             'keyword' => $terlihat ? Setting::hiddenKeywordPlain() : null,
             'keywordState' => Setting::hiddenKeywordState(),

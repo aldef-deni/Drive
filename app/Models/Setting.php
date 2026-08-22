@@ -48,7 +48,31 @@ class Setting extends Model
     public static function put(string $key, ?string $value): void
     {
         static::updateOrCreate(['key' => $key], ['value' => $value]);
-        Cache::forget(self::CACHE_PREFIX . $key);
+
+        // Isi ulang cache dengan nilai barunya, bukan sekadar dibuang. Kalau
+        // penulisan cache gagal, pembacaan berikutnya jatuh ke database dan
+        // tetap benar - yang berbahaya justru salinan lama yang tertinggal.
+        try {
+            Cache::forget(self::CACHE_PREFIX . $key);
+            Cache::forever(self::CACHE_PREFIX . $key, ['value' => $value]);
+        } catch (\Throwable $e) {
+            // Cache tidak tersedia; database tetap sumber kebenarannya.
+        }
+    }
+
+    /**
+     * Baca langsung dari database, melewati cache.
+     *
+     * Dipakai untuk hal yang harus benar-benar mencerminkan isi database,
+     * seperti kata kunci yang ditampilkan ke superadministrator.
+     */
+    public static function bacaLangsung(string $key): ?string
+    {
+        try {
+            return static::query()->where('key', $key)->value('value');
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /** Penanda nilai terenkripsi, membedakannya dari hash bcrypt lama. */
@@ -91,7 +115,7 @@ class Setting extends Model
      */
     public static function hiddenKeywordState(): string
     {
-        $nilai = static::get(self::HIDDEN_KEYWORD);
+        $nilai = static::bacaLangsung(self::HIDDEN_KEYWORD);
 
         if (!$nilai) {
             return self::STATE_DEFAULT;
@@ -114,7 +138,7 @@ class Setting extends Model
      */
     public static function hiddenKeywordPlain(): ?string
     {
-        $nilai = static::get(self::HIDDEN_KEYWORD);
+        $nilai = static::bacaLangsung(self::HIDDEN_KEYWORD);
 
         if (!$nilai) {
             return self::DEFAULT_HIDDEN_KEYWORD;

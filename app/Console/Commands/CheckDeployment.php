@@ -91,6 +91,7 @@ class CheckDeployment extends Command
 
             if (Schema::hasTable('settings')) {
                 $this->lolos('Tabel settings ada');
+                $this->periksaKataKunci();
             } else {
                 $this->gagal(
                     'Tabel settings belum ada',
@@ -100,6 +101,48 @@ class CheckDeployment extends Command
         } catch (\Throwable $e) {
             $this->gagal('Tidak bisa memeriksa database', $e->getMessage());
         }
+    }
+
+    /**
+     * Bentuk penyimpanan kata kunci Hidden System.
+     *
+     * Diperiksa karena kegagalannya tidak terlihat dari mana pun: halamannya
+     * tetap terbuka, kata kuncinya tetap berfungsi, hanya nilainya yang tidak
+     * bisa ditampilkan - dan itu justru saat paling dibutuhkan (lupa).
+     */
+    private function periksaKataKunci(): void
+    {
+        $bentuk = \App\Models\Setting::hiddenKeywordState();
+
+        if ($bentuk === \App\Models\Setting::STATE_READABLE) {
+            $this->lolos('Kata kunci Hidden System tersimpan terenkripsi dan bisa ditampilkan');
+
+            return;
+        }
+
+        if ($bentuk === \App\Models\Setting::STATE_DEFAULT) {
+            $this->peringatan(
+                'Kata kunci Hidden System masih bawaan',
+                'Ganti lewat menu Hidden System, atau: php artisan drive:hidden-keyword "kunciAnda"'
+            );
+
+            return;
+        }
+
+        if ($bentuk === \App\Models\Setting::STATE_LEGACY) {
+            $this->peringatan(
+                'Kata kunci Hidden System masih format lama (tidak bisa ditampilkan)',
+                'Masih berfungsi, tetapi nilainya tidak bisa dilihat. Tetapkan sekali: php artisan drive:hidden-keyword "kunciAnda"'
+            );
+
+            return;
+        }
+
+        $this->gagal(
+            'Kata kunci Hidden System tidak bisa dibuka',
+            'APP_KEY berubah setelah kata kunci disimpan, sehingga kata kunci lama juga sudah tidak berfungsi. '
+            . 'Tetapkan yang baru: php artisan drive:hidden-keyword "kunciAnda"'
+        );
     }
 
     private function periksaMultiPerusahaan(): void
