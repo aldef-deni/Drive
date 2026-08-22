@@ -274,6 +274,147 @@ class MultiCompanyTest extends TestCase
         $this->assertTrue($admin->is_active, 'Admin buatan superadmin langsung aktif');
     }
 
+    // ------------------------------------ Notifikasi tidak lintas perusahaan
+
+    public function test_notifikasi_aktivitas_tidak_bocor_ke_admin_perusahaan_lain(): void
+    {
+        $a = $this->company('PT Alpha Notif');
+        $b = $this->company('PT Beta Notif');
+
+        $anggotaA = $this->user($a, User::ROLE_USER, ['name' => 'Anggota Alpha']);
+        $adminA = $this->user($a, User::ROLE_ADMIN);
+        $adminB = $this->user($b, User::ROLE_ADMIN);
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+
+        $this->actingAs($anggotaA)->put('/profile', [
+            'name' => 'Anggota Alpha Baru',
+            'email' => $anggotaA->email,
+        ]);
+
+        $punya = fn (User $u) => \App\Models\Notification::where('user_id', $u->id)
+            ->where('type', 'profile_updated')->exists();
+
+        $this->assertTrue($punya($adminA), 'Admin perusahaan yang sama harus tahu');
+        $this->assertTrue($punya($super), 'Superadministrator mengawasi seluruh perusahaan');
+        $this->assertFalse($punya($adminB),
+            'Aktivitas satu perusahaan bukan urusan admin perusahaan lain');
+    }
+
+    public function test_penghapusan_file_hanya_memberi_tahu_admin_perusahaannya(): void
+    {
+        $a = $this->company('PT Hapus A');
+        $b = $this->company('PT Hapus B');
+
+        $anggotaA = $this->user($a);
+        $adminA = $this->user($a, User::ROLE_ADMIN);
+        $adminB = $this->user($b, User::ROLE_ADMIN);
+
+        $file = \App\Models\File::create([
+            'user_id' => $anggotaA->id,
+            'name' => 'berkas.txt',
+            'original_name' => 'berkas.txt',
+            'path' => 'drive/berkas.txt',
+            'mime_type' => 'text/plain',
+            'size' => 10,
+            'folder' => '/',
+            'is_locked' => false,
+            'is_hidden' => false,
+        ]);
+
+        $this->actingAs($anggotaA)->delete('/drive/file/' . $file->id);
+
+        $punya = fn (User $u) => \App\Models\Notification::where('user_id', $u->id)
+            ->where('type', 'file_deleted')->exists();
+
+        $this->assertTrue($punya($adminA));
+        $this->assertFalse($punya($adminB));
+    }
+
+    // ---------------------------- Admin perusahaan menambah akun sendiri
+
+    public function test_admin_perusahaan_bisa_menambah_akun_di_perusahaannya(): void
+    {
+        $company = $this->company('PT Rekrut Sendiri', ['default_quota' => 2 * 1073741824]);
+        $admin = $this->user($company, User::ROLE_ADMIN);
+
+        $this->actingAs($admin)->get('/admin/users/create')
+            ->assertOk()
+            ->assertSee('PT Rekrut Sendiri');
+
+        $this->actingAs($admin)->post('/admin/users', [
+            'name' => 'Anggota Baru',
+            'email' => 'anggotabaru@dekorasi.test',
+            'company_id' => $company->id,
+            'role' => User::ROLE_USER,
+            'password' => 'rahasia12345',
+            'password_confirmation' => 'rahasia12345',
+        ])->assertRedirect(route('admin.users'))->assertSessionHas('success');
+
+        $baru = User::where('email', 'anggotabaru@dekorasi.test')->firstOrFail();
+
+        $this->assertSame($company->id, $baru->company_id);
+        $this->assertTrue($baru->is_active);
+        $this->assertSame(2 * 1073741824, $baru->storage_quota);
+    }
+
+    public function test_admin_tidak_bisa_menambah_akun_ke_perusahaan_lain(): void
+    {
+        $milik = $this->company('PT Milik Saya');
+        $orang = $this->company('PT Orang Lain');
+        $admin = $this->user($milik, User::ROLE_ADMIN);
+
+        // Formulirnya mengunci perusahaan, tetapi isian bisa diubah sebelum
+        // dikirim - jadi servernya yang harus menolak, bukan tampilannya.
+        $this->actingAs($admin)->post('/admin/users', [
+            'name' => 'Selundupan',
+            'email' => 'selundup@dekorasi.test',
+            'company_id' => $orang->id,
+            'role' => User::ROLE_USER,
+            'password' => 'rahasia12345',
+            'password_confirmation' => 'rahasia12345',
+        ])->assertRedirect();
+
+        $baru = User::where('email', 'selundup@dekorasi.test')->firstOrFail();
+
+        $this->assertSame($milik->id, $baru->company_id,
+            'Akun harus tetap masuk ke perusahaan admin yang membuatnya');
+    }
+
+    public function test_formulir_tambah_user_mengunci_perusahaan_bagi_admin(): void
+    {
+        $company = $this->company('PT Terkunci');
+        $admin = $this->user($company, User::ROLE_ADMIN);
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $this->company('PT Lainnya');
+
+        $html = $this->actingAs($admin)->get('/admin/users/create')->assertOk()->getContent();
+        $this->assertStringNotContainsString('PT Lainnya', $html,
+            'Admin perusahaan tidak boleh melihat perusahaan lain sebagai pilihan');
+
+        $this->app['auth']->forgetGuards();
+
+        $html = $this->actingAs($super)->get('/admin/users/create')->assertOk()->getContent();
+        $this->assertStringContainsString('PT Lainnya', $html,
+            'Superadministrator tetap memilih dari seluruh perusahaan');
+    }
+
+    public function test_pengguna_biasa_tetap_tidak_bisa_menambah_akun(): void
+    {
+        $biasa = $this->user($this->company('PT Bukan Admin'));
+
+        $this->actingAs($biasa)->get('/admin/users/create')->assertForbidden();
+        $this->actingAs($biasa)->post('/admin/users', [
+            'name' => 'Nekat',
+            'email' => 'nekat@dekorasi.test',
+            'company_id' => $biasa->company_id,
+            'role' => User::ROLE_ADMIN,
+            'password' => 'rahasia12345',
+            'password_confirmation' => 'rahasia12345',
+        ])->assertForbidden();
+
+        $this->assertDatabaseMissing('users', ['email' => 'nekat@dekorasi.test']);
+    }
+
     // ------------------------------------------- Kontrak API aplikasi
 
     /** Kepala permintaan untuk pengguna yang sudah punya token. */
@@ -791,29 +932,30 @@ class MultiCompanyTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'calonsuper@dekorasi.test']);
     }
 
-    public function test_tambah_user_hanya_untuk_superadmin(): void
+    public function test_tombol_tambah_user_terbuka_untuk_admin_tapi_bukan_pengguna_biasa(): void
     {
         $company = $this->company('PT Batas');
         $admin = $this->user($company, User::ROLE_ADMIN);
         $biasa = $this->user($company);
 
-        foreach ([$admin, $biasa] as $pelaku) {
-            $this->actingAs($pelaku)->get('/admin/users/create')->assertForbidden();
+        // Admin perusahaan kini boleh menambah akun - terbatas pada
+        // perusahaannya sendiri, yang dijaga di pengujian terpisah.
+        $this->actingAs($admin)->get('/admin/users')->assertOk()->assertSee('Tambah User');
+        $this->actingAs($admin)->get('/admin/users/create')->assertOk();
 
-            $this->actingAs($pelaku)->post('/admin/users', [
-                'name' => 'Selundupan',
-                'email' => 'selundupan@dekorasi.test',
-                'company_id' => $company->id,
-                'role' => User::ROLE_ADMIN,
-                'password' => 'rahasia12345',
-                'password_confirmation' => 'rahasia12345',
-            ])->assertForbidden();
-        }
+        $this->app['auth']->forgetGuards();
+
+        $this->actingAs($biasa)->get('/admin/users/create')->assertForbidden();
+        $this->actingAs($biasa)->post('/admin/users', [
+            'name' => 'Selundupan',
+            'email' => 'selundupan@dekorasi.test',
+            'company_id' => $company->id,
+            'role' => User::ROLE_ADMIN,
+            'password' => 'rahasia12345',
+            'password_confirmation' => 'rahasia12345',
+        ])->assertForbidden();
 
         $this->assertDatabaseMissing('users', ['email' => 'selundupan@dekorasi.test']);
-
-        // Tombolnya pun tidak boleh terlihat oleh admin perusahaan.
-        $this->actingAs($admin)->get('/admin/users')->assertOk()->assertDontSee('Tambah User');
     }
 
     public function test_akun_baru_ditolak_bila_perusahaan_penuh_atau_nonaktif(): void

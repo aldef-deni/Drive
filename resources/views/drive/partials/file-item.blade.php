@@ -15,6 +15,7 @@
      data-folder="{{ $file->folder }}"
      data-mime="{{ $file->mime_type }}"
      data-hidden="{{ $file->is_hidden ? '1' : '0' }}"
+     data-starred="{{ $file->is_starred ? '1' : '0' }}"
      data-locked="{{ $file->lock_password ? '1' : '0' }}"
      data-encrypted="{{ $file->is_encrypted ? '1' : '0' }}"
      data-shared="{{ $isShared ? '1' : '0' }}">
@@ -28,12 +29,15 @@
     <span class="text-xs text-slate-400 hidden md:block w-20 text-right">{{ $file->formatSize() }}</span>
     <span class="text-xs text-slate-500 hidden lg:block w-40 truncate">{{ $file->mime_type }}</span>
     <span class="text-xs text-slate-400 hidden md:block w-24 text-right">{{ $file->updated_at->format('d M Y') }}</span>
+    @include('drive.partials.star-button', [
+        'kind' => 'file', 'id' => $file->id, 'starred' => $file->is_starred, 'variant' => 'list',
+    ])
     @if($isShared)<span class="px-2 py-0.5 bg-blue-500/15 text-blue-400 text-xs rounded-full hidden md:inline-flex"><i class="fas fa-share-alt mr-1"></i>Dibagikan</span>@endif
     @if($file->lock_password)<span class="px-2 py-0.5 bg-red-500/15 text-red-400 text-xs rounded-full hidden md:inline-flex"><i class="fas fa-lock mr-1"></i>Terkunci</span>@endif
 </div>
 
 @elseif($variant === 'large')
-<div class="drive-item panel p-5 hover-lift cursor-pointer"
+<div class="drive-item panel p-5 hover-lift cursor-pointer relative"
      draggable="true"
      data-kind="file"
      data-id="{{ $file->id }}"
@@ -41,6 +45,7 @@
      data-folder="{{ $file->folder }}"
      data-mime="{{ $file->mime_type }}"
      data-hidden="{{ $file->is_hidden ? '1' : '0' }}"
+     data-starred="{{ $file->is_starred ? '1' : '0' }}"
      data-locked="{{ $file->lock_password ? '1' : '0' }}"
      data-encrypted="{{ $file->is_encrypted ? '1' : '0' }}"
      data-shared="{{ $isShared ? '1' : '0' }}">
@@ -56,6 +61,9 @@
             @if($file->is_hidden)<span class="px-1.5 py-0.5 bg-amber-500/15 text-amber-400 text-[10px] rounded-full"><i class="fas fa-eye-slash"></i></span>@endif
         </div>
     </div>
+    @include('drive.partials.star-button', [
+        'kind' => 'file', 'id' => $file->id, 'starred' => $file->is_starred, 'variant' => 'large',
+    ])
 </div>
 
 @else
@@ -67,6 +75,7 @@
      data-folder="{{ $file->folder }}"
      data-mime="{{ $file->mime_type }}"
      data-hidden="{{ $file->is_hidden ? '1' : '0' }}"
+     data-starred="{{ $file->is_starred ? '1' : '0' }}"
      data-locked="{{ $file->lock_password ? '1' : '0' }}"
      data-encrypted="{{ $file->is_encrypted ? '1' : '0' }}"
      data-shared="{{ $isShared ? '1' : '0' }}">
@@ -77,9 +86,12 @@
         <p class="font-medium text-white text-xs truncate w-full">{{ $file->original_name }}</p>
         <p class="text-[10px] text-slate-500 mt-0.5">{{ $file->formatSize() }}</p>
     </div>
-    <div class="absolute top-1.5 right-1.5 flex gap-1">
+    <div class="absolute top-1.5 right-1.5 flex items-center gap-1">
         @if($file->lock_password)<i class="fas fa-lock text-red-400 text-[10px]"></i>@endif
         @if($isShared)<i class="fas fa-share-alt text-blue-400 text-[10px]"></i>@endif
+        @include('drive.partials.star-button', [
+            'kind' => 'file', 'id' => $file->id, 'starred' => $file->is_starred, 'variant' => 'inline',
+        ])
     </div>
 </div>
 @endif

@@ -30,7 +30,11 @@ class ApiDriveController extends Controller
         $user = Auth::user();
         $this->storageService->recalculateStorage($user);
 
-        $folder = $request->get('folder', '/');
+        // Dipaksa jadi string: klien bisa mengirim folder kosong atau berbentuk
+        // array, dan nilai null membuat StorageService melempar TypeError -
+        // seluruh permintaan gagal dengan 500, bukan sekadar salah folder.
+        $folder = $request->get('folder');
+        $folder = is_string($folder) && $folder !== '' ? $folder : '/';
         $search = trim((string) $request->get('search', ''));
 
         // Mode ungkap dibuka dengan mengetik kata kunci rahasia di pencarian.
@@ -75,6 +79,7 @@ class ApiDriveController extends Controller
                     'size_formatted' => $f->formatSize(),
                     'folder' => $f->folder,
                     'is_hidden' => $f->is_hidden,
+                    'is_starred' => $f->is_starred,
                     'is_encrypted' => $f->is_encrypted,
                     'is_locked' => !empty($f->lock_password),
                     'is_shared' => $f->isShared(),
@@ -90,6 +95,7 @@ class ApiDriveController extends Controller
                     'path' => $f->path,
                     'parent_path' => $f->parent_path,
                     'is_hidden' => $f->is_hidden,
+                    'is_starred' => $f->is_starred,
                     'is_locked' => !empty($f->lock_password),
                     'has_locked_files' => $f->hasLockedFiles(),
                     'created_at' => $f->created_at->toISOString(),
@@ -159,6 +165,7 @@ class ApiDriveController extends Controller
                     'size_formatted' => $file->formatSize(),
                     'is_locked' => $isLocked,
                     'is_hidden' => $file->is_hidden,
+                    'is_starred' => $file->is_starred,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -272,6 +279,7 @@ class ApiDriveController extends Controller
                 'path' => $folder->path,
                 'parent_path' => $folder->parent_path,
                 'is_hidden' => $folder->is_hidden,
+                'is_starred' => $folder->is_starred,
                 'created_at' => $folder->created_at->toISOString(),
             ],
         ]);
@@ -507,6 +515,88 @@ class ApiDriveController extends Controller
         ]);
     }
 
+    /**
+     * File dan folder berbintang, lintas folder.
+     *
+     * Item tersembunyi tetap disembunyikan kecuali kata kunci rahasia dikirim -
+     * kalau tidak, bintang menjadi celah untuk memunculkannya tanpa kata kunci.
+     */
+    public function starred(Request $request)
+    {
+        $user = Auth::user();
+        $showHidden = Setting::matchesHiddenKeyword((string) $request->get('reveal_keyword', ''));
+
+        $files = File::where('user_id', $user->id)
+            ->where('is_starred', true)
+            ->when(!$showHidden, fn ($q) => $q->where('is_hidden', false))
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(fn ($f) => [
+                'id' => $f->id,
+                'name' => $f->original_name,
+                'folder' => $f->folder,
+                'size' => $f->size,
+                'size_formatted' => $f->formatSize(),
+                'mime_type' => $f->mime_type,
+                'is_locked' => (bool) $f->lock_password,
+                'is_hidden' => $f->is_hidden,
+                'is_starred' => $f->is_starred,
+                'updated_at' => $f->updated_at->toISOString(),
+            ]);
+
+        $folders = FileFolder::where('user_id', $user->id)
+            ->where('is_starred', true)
+            ->when(!$showHidden, fn ($q) => $q->where('is_hidden', false))
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($f) => [
+                'id' => $f->id,
+                'name' => $f->name,
+                'path' => $f->path,
+                'is_locked' => (bool) $f->lock_password,
+                'is_hidden' => $f->is_hidden,
+                'is_starred' => $f->is_starred,
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'files' => $files,
+            'folders' => $folders,
+        ]);
+    }
+
+    public function toggleStar(File $file)
+    {
+        if ($file->user_id !== Auth::id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $file->is_starred = !$file->is_starred;
+        $file->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $file->is_starred ? 'File ditandai berbintang' : 'File dilepas dari berbintang',
+            'is_starred' => $file->is_starred,
+        ]);
+    }
+
+    public function toggleFolderStar(FileFolder $folder)
+    {
+        if ($folder->user_id !== Auth::id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $folder->is_starred = !$folder->is_starred;
+        $folder->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $folder->is_starred ? 'Folder ditandai berbintang' : 'Folder dilepas dari berbintang',
+            'is_starred' => $folder->is_starred,
+        ]);
+    }
+
     public function toggleVisibility(File $file)
     {
         if ($file->user_id !== Auth::id()) {
@@ -520,6 +610,7 @@ class ApiDriveController extends Controller
             'success' => true,
             'message' => $file->is_hidden ? 'File disembunyikan' : 'File ditampilkan',
             'is_hidden' => $file->is_hidden,
+            'is_starred' => $file->is_starred,
         ]);
     }
 
@@ -536,6 +627,7 @@ class ApiDriveController extends Controller
             'success' => true,
             'message' => $folder->is_hidden ? 'Folder disembunyikan' : 'Folder ditampilkan',
             'is_hidden' => $folder->is_hidden,
+            'is_starred' => $folder->is_starred,
         ]);
     }
 
@@ -554,6 +646,7 @@ class ApiDriveController extends Controller
                 'size_formatted' => $file->formatSize(),
                 'folder' => $file->folder,
                 'is_hidden' => $file->is_hidden,
+                'is_starred' => $file->is_starred,
                 'is_encrypted' => $file->is_encrypted,
                 'is_locked' => !empty($file->lock_password),
                 'is_shared' => $file->isShared(),

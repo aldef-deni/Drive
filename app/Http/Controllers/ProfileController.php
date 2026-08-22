@@ -45,8 +45,8 @@ class ProfileController extends Controller
             'url'     => null,
         ]);
 
-        // Notify admins too
-        \App\Models\User::where('role', 'admin')->where('is_active', true)->where('id', '!=', $user->id)->each(function ($admin) use ($user) {
+        // Beri tahu admin perusahaan yang sama saja, plus superadministrator.
+        \App\Models\User::pengawasUntuk($user)->each(function ($admin) use ($user) {
             \App\Models\Notification::create([
                 'user_id' => $admin->id,
                 'type'    => 'profile_updated',

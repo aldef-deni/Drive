@@ -16,6 +16,7 @@ class FileFolder extends Model
         'path',
         'parent_path',
         'is_hidden',
+        'is_starred',
         'lock_password',
     ];
 
@@ -25,6 +26,7 @@ class FileFolder extends Model
 
     protected $casts = [
         'is_hidden' => 'boolean',
+        'is_starred' => 'boolean',
     ];
 
     /**

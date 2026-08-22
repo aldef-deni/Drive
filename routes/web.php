@@ -49,6 +49,9 @@ Route::prefix('drive')->middleware('auth')->group(function () {
     Route::delete('/file/{file}', [DriveController::class, 'destroy'])->name('drive.destroy');
     Route::get('/file/{file}/download', [DriveController::class, 'download'])->name('drive.download');
     Route::post('/file/{file}/download-encrypted', [DriveController::class, 'downloadEncrypted'])->name('drive.download.encrypted');
+    Route::get('/starred', [DriveController::class, 'starred'])->name('drive.starred');
+    Route::post('/file/{file}/star', [DriveController::class, 'toggleStar'])->name('drive.file.star');
+    Route::post('/folder/{folder}/star', [DriveController::class, 'toggleFolderStar'])->name('drive.folder.star');
     Route::post('/file/{file}/toggle-visibility', [DriveController::class, 'toggleVisibility'])->name('drive.toggle-visibility');
     Route::post('/folder/create', [DriveController::class, 'createFolder'])->name('drive.folder.create');
     Route::post('/folder/{folder}/toggle-visibility', [DriveController::class, 'toggleFolderVisibility'])->name('drive.folder.toggle-visibility');
@@ -70,12 +73,12 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('admin.index');
     Route::get('/users', [AdminController::class, 'users'])->name('admin.users');
 
-    // Pembuatan akun langsung oleh superadministrator - tanpa antre verifikasi.
+    // Pembuatan akun langsung oleh admin - tanpa antre verifikasi. Admin
+    // perusahaan hanya bisa menambah ke perusahaannya sendiri; pembatasannya
+    // dipasang di controller, bukan di rute.
     // Didaftarkan sebelum rute ber-parameter agar "create" tidak terbaca sebagai id.
-    Route::middleware('superadmin')->group(function () {
-        Route::get('/users/create', [AdminController::class, 'createUser'])->name('admin.users.create');
-        Route::post('/users', [AdminController::class, 'storeUser'])->name('admin.users.store');
-    });
+    Route::get('/users/create', [AdminController::class, 'createUser'])->name('admin.users.create');
+    Route::post('/users', [AdminController::class, 'storeUser'])->name('admin.users.store');
 
     Route::get('/users/{user}/edit', [AdminController::class, 'editUser'])->name('admin.users.edit');
     Route::put('/users/{user}', [AdminController::class, 'updateUser'])->name('admin.users.update');

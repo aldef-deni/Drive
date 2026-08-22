@@ -195,6 +195,29 @@ class User extends Authenticatable
      * Batasi query ke perusahaan pengguna ini.
      * Superadministrator melihat seluruh data tanpa penyaringan.
      */
+    /**
+     * Admin yang berhak diberi tahu tentang aktivitas seorang pengguna.
+     *
+     * Hanya admin perusahaan yang sama, ditambah superadministrator. Admin
+     * perusahaan lain tidak termasuk: kegiatan satu perusahaan bukan urusan
+     * mereka, dan membocorkannya lewat notifikasi membatalkan pemisahan data
+     * yang dijaga di tempat lain.
+     */
+    public static function pengawasUntuk(User $subjek)
+    {
+        return static::query()
+            ->where('is_active', true)
+            ->where('id', '!=', $subjek->id)
+            ->where(function ($q) use ($subjek) {
+                $q->where(function ($w) use ($subjek) {
+                    $w->where('role', self::ROLE_ADMIN)
+                        ->whereNotNull('company_id')
+                        ->where('company_id', $subjek->company_id);
+                })->orWhere('role', self::ROLE_SUPERADMIN);
+            })
+            ->get();
+    }
+
     public function scopeVisibleTo($query, User $pelaku)
     {
         if ($pelaku->isSuperAdmin()) {

@@ -20,6 +20,7 @@ class File extends Model
         'path',
         'folder',
         'is_hidden',
+        'is_starred',
         'is_encrypted',
         'encryption_password',
         'lock_password',
@@ -35,6 +36,7 @@ class File extends Model
     protected $casts = [
         'size' => 'integer',
         'is_hidden' => 'boolean',
+        'is_starred' => 'boolean',
         'is_encrypted' => 'boolean',
     ];
 

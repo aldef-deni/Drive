@@ -239,8 +239,27 @@ class AdminController extends Controller
      */
     public function createUser()
     {
+        $pelaku = Auth::user();
+
+        // Admin perusahaan hanya boleh menambah ke perusahaannya sendiri, jadi
+        // daftar pilihannya pun hanya berisi satu itu.
+        $companies = Company::where('is_active', true)
+            ->when(!$pelaku->isSuperAdmin(), fn ($q) => $q->where('id', $pelaku->company_id))
+            ->orderBy('name')
+            ->get();
+
+        if ($companies->isEmpty()) {
+            return redirect()->route('admin.users')->with(
+                'error',
+                $pelaku->isSuperAdmin()
+                    ? 'Belum ada perusahaan aktif. Tambahkan perusahaan terlebih dahulu.'
+                    : 'Perusahaan Anda sedang nonaktif, akun baru tidak bisa dibuat.'
+            );
+        }
+
         return view('admin.create-user', [
-            'companies' => Company::where('is_active', true)->orderBy('name')->get(),
+            'companies' => $companies,
+            'kunciPerusahaan' => !$pelaku->isSuperAdmin(),
         ]);
     }
 
@@ -265,7 +284,19 @@ class AdminController extends Controller
             'role' => 'peran',
         ]);
 
-        $company = Company::find($request->company_id);
+        $pelaku = Auth::user();
+
+        // Perusahaan yang dikirim tidak dipercaya begitu saja: admin
+        // perusahaan selalu dikunci ke perusahaannya sendiri, apa pun isi
+        // formulir yang sampai ke server.
+        $company = $pelaku->isSuperAdmin()
+            ? Company::find($request->company_id)
+            : $pelaku->company;
+
+        if (!$company) {
+            return back()->withInput()
+                ->withErrors(['company_id' => 'Perusahaan tidak ditemukan.']);
+        }
 
         if (!$company->is_active) {
             return back()->withInput()

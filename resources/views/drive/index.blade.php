@@ -1062,6 +1062,75 @@
     // =====================================================================
     let dragData = null;
 
+    /**
+     * Tandai / lepas bintang.
+     *
+     * Dipasang sekali di tingkat dokumen: kartu bisa digambar ulang, dan
+     * mengikat ulang tiap tombol setiap kali hanya menambah pekerjaan.
+     */
+    document.addEventListener('click', async e => {
+        const tombol = e.target.closest('.star-toggle');
+        if (!tombol) return;
+
+        // Kartunya sendiri membuka file/folder saat diklik; bintang tidak boleh
+        // ikut memicunya.
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (tombol.dataset.busy === '1') return;
+        tombol.dataset.busy = '1';
+
+        const kind = tombol.dataset.starKind;
+        const id = tombol.dataset.starId;
+        const url = kind === 'folder' ? `/drive/folder/${id}/star` : `/drive/file/${id}/star`;
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || 'Gagal');
+
+            terapkanBintang(tombol, data.is_starred);
+
+            // Di halaman Berbintang, item yang dilepas tidak lagi termasuk —
+            // membiarkannya di layar membuat daftarnya berbohong.
+            if (!data.is_starred && document.body.dataset.page === 'starred') {
+                const kartu = tombol.closest('.drive-item');
+                if (kartu) kartu.remove();
+                perbaruiKosongBerbintang();
+            }
+        } catch (err) {
+            alert(err.message || 'Gagal memperbarui bintang.');
+        } finally {
+            tombol.dataset.busy = '0';
+        }
+    });
+
+    function terapkanBintang(tombol, berbintang) {
+        const ikon = tombol.querySelector('i');
+
+        tombol.dataset.starred = berbintang ? '1' : '0';
+        tombol.setAttribute('aria-pressed', berbintang ? 'true' : 'false');
+        tombol.title = berbintang ? 'Lepas dari berbintang' : 'Tandai berbintang';
+        tombol.classList.toggle('text-gold-500', berbintang);
+        tombol.classList.toggle('text-slate-600', !berbintang);
+        ikon.classList.toggle('fas', berbintang);
+        ikon.classList.toggle('far', !berbintang);
+
+        const kartu = tombol.closest('.drive-item');
+        if (kartu) kartu.dataset.starred = berbintang ? '1' : '0';
+    }
+
+    function perbaruiKosongBerbintang() {
+        const kosong = document.getElementById('berbintangKosong');
+        if (kosong && document.querySelectorAll('.drive-item').length === 0) {
+            kosong.classList.remove('hidden');
+            document.querySelectorAll('.berbintang-grup').forEach(g => g.classList.add('hidden'));
+        }
+    }
+
     function bindItems() {
         document.querySelectorAll('.drive-item').forEach(el => {
             if (el.dataset.bound === '1') return;

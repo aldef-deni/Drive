@@ -324,6 +324,175 @@ class DriveFlowTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // ---------------------------------------------------- Berbintang
+
+    public function test_file_dan_folder_bisa_ditandai_berbintang(): void
+    {
+        $user = $this->makeUser();
+
+        $file = File::create([
+            'user_id' => $user->id,
+            'name' => 'penting.txt',
+            'original_name' => 'penting.txt',
+            'path' => 'drive/penting.txt',
+            'mime_type' => 'text/plain',
+            'size' => 12,
+            'folder' => '/',
+            'is_locked' => false,
+            'is_hidden' => false,
+        ]);
+
+        $folder = FileFolder::create([
+            'user_id' => $user->id,
+            'name' => 'Proyek',
+            'path' => '/Proyek',
+            'parent_path' => '/',
+            'is_hidden' => false,
+        ]);
+
+        // create() tidak memuat nilai bawaan dari database, jadi dibaca ulang.
+        $this->assertFalse($file->fresh()->is_starred);
+        $this->assertFalse($folder->fresh()->is_starred);
+
+        $this->actingAs($user)->post('/drive/file/' . $file->id . '/star')->assertRedirect();
+        $this->actingAs($user)->post('/drive/folder/' . $folder->id . '/star')->assertRedirect();
+
+        $this->assertTrue($file->fresh()->is_starred);
+        $this->assertTrue($folder->fresh()->is_starred);
+
+        // Menekan lagi melepasnya - satu tombol, dua arah.
+        $this->actingAs($user)->post('/drive/file/' . $file->id . '/star');
+        $this->assertFalse($file->fresh()->is_starred);
+    }
+
+    public function test_halaman_berbintang_mengumpulkan_dari_seluruh_folder(): void
+    {
+        $user = $this->makeUser();
+
+        $ditandai = File::create([
+            'user_id' => $user->id,
+            'name' => 'ditandai.txt',
+            'original_name' => 'ditandai.txt',
+            'path' => 'drive/a/ditandai.txt',
+            'mime_type' => 'text/plain',
+            'size' => 5,
+            'folder' => '/Arsip/2026',
+            'is_locked' => false,
+            'is_hidden' => false,
+            'is_starred' => true,
+        ]);
+
+        File::create([
+            'user_id' => $user->id,
+            'name' => 'biasa.txt',
+            'original_name' => 'biasa.txt',
+            'path' => 'drive/b/biasa.txt',
+            'mime_type' => 'text/plain',
+            'size' => 5,
+            'folder' => '/',
+            'is_locked' => false,
+            'is_hidden' => false,
+        ]);
+
+        $this->actingAs($user)->get('/drive/starred')
+            ->assertOk()
+            ->assertSee('ditandai.txt')
+            ->assertDontSee('biasa.txt');
+
+        $this->assertSame('/Arsip/2026', $ditandai->folder,
+            'Item berbintang tetap berada di folder aslinya, bukan dipindahkan');
+    }
+
+    public function test_berbintang_tidak_membocorkan_item_tersembunyi(): void
+    {
+        $user = $this->makeUser();
+
+        File::create([
+            'user_id' => $user->id,
+            'name' => 'rahasia.txt',
+            'original_name' => 'rahasia.txt',
+            'path' => 'drive/rahasia.txt',
+            'mime_type' => 'text/plain',
+            'size' => 5,
+            'folder' => '/',
+            'is_locked' => false,
+            'is_hidden' => true,
+            'is_starred' => true,
+        ]);
+
+        // Tanpa mode ungkap, bintang tidak boleh menjadi pintu belakang untuk
+        // memunculkan item tersembunyi tanpa kata kunci.
+        $this->actingAs($user)->get('/drive/starred')
+            ->assertOk()
+            ->assertDontSee('rahasia.txt');
+
+        $this->actingAs($user)->withSession(['hidden_revealed' => true])
+            ->get('/drive/starred')
+            ->assertOk()
+            ->assertSee('rahasia.txt');
+    }
+
+    public function test_bintang_orang_lain_tidak_bisa_disentuh(): void
+    {
+        $pemilik = $this->makeUser();
+        $penyusup = $this->makeUser();
+
+        $file = File::create([
+            'user_id' => $pemilik->id,
+            'name' => 'milik-orang.txt',
+            'original_name' => 'milik-orang.txt',
+            'path' => 'drive/milik-orang.txt',
+            'mime_type' => 'text/plain',
+            'size' => 5,
+            'folder' => '/',
+            'is_locked' => false,
+            'is_hidden' => false,
+        ]);
+
+        $this->actingAs($penyusup)->post('/drive/file/' . $file->id . '/star')->assertForbidden();
+
+        $this->assertFalse($file->fresh()->is_starred);
+    }
+
+    public function test_bintang_lewat_api_dan_daftar_berbintang(): void
+    {
+        $user = $this->makeUser();
+        $user->update(['api_token' => \Illuminate\Support\Str::random(64)]);
+
+        $file = File::create([
+            'user_id' => $user->id,
+            'name' => 'app.txt',
+            'original_name' => 'app.txt',
+            'path' => 'drive/app.txt',
+            'mime_type' => 'text/plain',
+            'size' => 5,
+            'folder' => '/',
+            'is_locked' => false,
+            'is_hidden' => false,
+        ]);
+
+        $headers = [
+            'Authorization' => 'Bearer ' . $user->api_token,
+            'Accept' => 'application/json',
+        ];
+
+        $this->withHeaders($headers)
+            ->post('/api/drive/file/' . $file->id . '/star')
+            ->assertOk()
+            ->assertJson(['success' => true, 'is_starred' => true]);
+
+        $res = $this->withHeaders($headers)->get('/api/drive/starred')->assertOk()->json();
+
+        $this->assertCount(1, $res['files']);
+        $this->assertSame('app.txt', $res['files'][0]['name']);
+
+        // Daftar utama juga harus membawa penanda bintangnya, kalau tidak
+        // ikonnya di aplikasi selalu terlihat kosong.
+        $drive = $this->withHeaders($headers)->get('/api/drive?folder=/')->assertOk()->json();
+        $this->assertArrayHasKey('is_starred', $drive['files'][0]);
+        $this->assertTrue($drive['files'][0]['is_starred']);
+    }
+
     // Hidden system (kata kunci rahasia)
     // ---------------------------------------------------------------
 

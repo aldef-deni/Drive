@@ -283,6 +283,10 @@
                     <i class="fas fa-hard-drive w-5"></i>
                     <span>Drive Saya</span>
                 </a>
+                <a href="{{ route('drive.starred') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('drive.starred') ? 'active' : '' }}">
+                    <i class="fas fa-star w-5 text-center"></i>
+                    <span>Berbintang</span>
+                </a>
                 <a href="{{ route('notifications.index') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('notifications.index') ? 'active' : '' }}">
                     <i class="fas fa-bell w-5"></i>
                     <span>Notifikasi</span>

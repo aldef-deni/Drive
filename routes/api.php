@@ -38,6 +38,9 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/drive/folder/{folder}/unlock', [ApiDriveController::class, 'unlockFolder']);
     Route::post('/drive/file/{file}/share', [ApiDriveController::class, 'share']);
     Route::post('/drive/file/{file}/unshare', [ApiDriveController::class, 'unshare']);
+    Route::get('/drive/starred', [ApiDriveController::class, 'starred']);
+    Route::post('/drive/file/{file}/star', [ApiDriveController::class, 'toggleStar']);
+    Route::post('/drive/folder/{folder}/star', [ApiDriveController::class, 'toggleFolderStar']);
     Route::post('/drive/file/{file}/toggle-visibility', [ApiDriveController::class, 'toggleVisibility']);
     Route::post('/drive/folder/{folder}/toggle-visibility', [ApiDriveController::class, 'toggleFolderVisibility']);
     Route::get('/drive/file/{file}/info', [ApiDriveController::class, 'info']);

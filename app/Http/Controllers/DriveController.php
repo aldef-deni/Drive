@@ -34,7 +34,11 @@ class DriveController extends Controller
         // Recalculate storage to keep it accurate
         $this->storageService->recalculateStorage($user);
 
-        $folder = $request->get('folder', '/');
+        // Dipaksa jadi string: klien bisa mengirim folder kosong atau berbentuk
+        // array, dan nilai null membuat StorageService melempar TypeError -
+        // seluruh permintaan gagal dengan 500, bukan sekadar salah folder.
+        $folder = $request->get('folder');
+        $folder = is_string($folder) && $folder !== '' ? $folder : '/';
         $search = trim((string) $request->get('search', ''));
 
         // Mengetik kata kunci rahasia di kolom pencarian membuka mode ungkap.
@@ -239,8 +243,8 @@ class DriveController extends Controller
             'url'     => null,
         ]);
 
-        // Notify admins
-        \App\Models\User::where('role', 'admin')->where('is_active', true)->where('id', '!=', Auth::id())->each(function ($admin) use ($file) {
+        // Beri tahu admin perusahaan pengunggah saja, plus superadministrator.
+        \App\Models\User::pengawasUntuk(Auth::user())->each(function ($admin) use ($file) {
             \App\Models\Notification::create([
                 'user_id' => $admin->id,
                 'type'    => 'file_deleted',
@@ -322,8 +326,8 @@ class DriveController extends Controller
             'url'     => null,
         ]);
 
-        // Notify admins
-        \App\Models\User::where('role', 'admin')->where('is_active', true)->where('id', '!=', Auth::id())->each(function ($admin) use ($folder) {
+        // Beri tahu admin perusahaan yang sama saja, plus superadministrator.
+        \App\Models\User::pengawasUntuk(Auth::user())->each(function ($admin) use ($folder) {
             \App\Models\Notification::create([
                 'user_id' => $admin->id,
                 'type'    => 'folder_deleted',
@@ -519,6 +523,83 @@ class DriveController extends Controller
     /**
      * Toggle file visibility.
      */
+    /**
+     * Halaman berbintang: file dan folder yang ditandai, lintas folder.
+     *
+     * Item tersembunyi tetap disembunyikan di sini kecuali mode ungkap aktif -
+     * kalau tidak, menandai bintang menjadi celah untuk memunculkannya kembali
+     * tanpa kata kunci.
+     */
+    public function starred(Request $request)
+    {
+        $user = Auth::user();
+        $showHidden = (bool) $request->session()->get('hidden_revealed', false);
+
+        $files = File::where('user_id', $user->id)
+            ->where('is_starred', true)
+            ->when(!$showHidden, fn ($q) => $q->where('is_hidden', false))
+            ->orderByDesc('updated_at')
+            ->get();
+
+        $folders = FileFolder::where('user_id', $user->id)
+            ->where('is_starred', true)
+            ->when(!$showHidden, fn ($q) => $q->where('is_hidden', false))
+            ->orderBy('name')
+            ->get();
+
+        return view('drive.starred', [
+            'files' => $files,
+            'folders' => $folders,
+            'user' => $user,
+            'showHidden' => $showHidden,
+        ]);
+    }
+
+    /**
+     * Tandai atau lepas bintang pada sebuah file.
+     */
+    public function toggleStar(File $file)
+    {
+        if ($file->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $file->is_starred = !$file->is_starred;
+        $file->save();
+
+        return $this->jawabBintang($file->is_starred, 'File');
+    }
+
+    /**
+     * Tandai atau lepas bintang pada sebuah folder.
+     */
+    public function toggleFolderStar(FileFolder $folder)
+    {
+        if ($folder->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $folder->is_starred = !$folder->is_starred;
+        $folder->save();
+
+        return $this->jawabBintang($folder->is_starred, 'Folder');
+    }
+
+    private function jawabBintang(bool $berbintang, string $jenis)
+    {
+        $pesan = $jenis . ($berbintang ? ' ditandai berbintang' : ' dilepas dari berbintang');
+
+        if (!request()->expectsJson()) {
+            return back()->with('success', $pesan);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $pesan,
+            'is_starred' => $berbintang,
+        ]);
+    }
+
     public function toggleVisibility(File $file)
     {
         if ($file->user_id !== Auth::id()) {

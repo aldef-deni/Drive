@@ -16,6 +16,7 @@
      data-path="{{ $folder->path }}"
      data-url="{{ route('drive.index', ['folder' => $folder->path]) }}"
      data-hidden="{{ $folder->is_hidden ? '1' : '0' }}"
+     data-starred="{{ $folder->is_starred ? '1' : '0' }}"
      data-locked="{{ $isLockedTree ? '1' : '0' }}">
     <div class="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0">
         <i class="fas fa-folder text-amber-400 text-lg"></i>
@@ -25,6 +26,9 @@
         <p class="text-[11px] text-slate-500 md:hidden">{{ $folder->created_at->format('d M Y') }}</p>
     </div>
     <span class="text-xs text-slate-400 hidden md:block">{{ $folder->created_at->format('d M Y') }}</span>
+    @include('drive.partials.star-button', [
+        'kind' => 'folder', 'id' => $folder->id, 'starred' => $folder->is_starred, 'variant' => 'list',
+    ])
     @if($folder->lock_password)
     <i class="fas fa-lock text-red-400 text-sm" title="Terkunci"></i>
     @endif
@@ -42,6 +46,7 @@
      data-path="{{ $folder->path }}"
      data-url="{{ route('drive.index', ['folder' => $folder->path]) }}"
      data-hidden="{{ $folder->is_hidden ? '1' : '0' }}"
+     data-starred="{{ $folder->is_starred ? '1' : '0' }}"
      data-locked="{{ $isLockedTree ? '1' : '0' }}">
     <div class="flex flex-col items-center text-center">
         <div class="w-20 h-20 rounded-2xl bg-amber-500/15 flex items-center justify-center mb-3">
@@ -53,6 +58,9 @@
         <span class="mt-1.5 px-2 py-0.5 bg-red-500/15 text-red-400 text-[10px] rounded-full"><i class="fas fa-lock mr-1"></i>Terkunci</span>
         @endif
     </div>
+    @include('drive.partials.star-button', [
+        'kind' => 'folder', 'id' => $folder->id, 'starred' => $folder->is_starred, 'variant' => 'large',
+    ])
     @if($folder->is_hidden)
     <span class="absolute top-2 left-2 px-2 py-1 bg-amber-500/15 text-amber-400 text-[10px] rounded-full"><i class="fas fa-eye-slash"></i></span>
     @endif
@@ -67,6 +75,7 @@
      data-path="{{ $folder->path }}"
      data-url="{{ route('drive.index', ['folder' => $folder->path]) }}"
      data-hidden="{{ $folder->is_hidden ? '1' : '0' }}"
+     data-starred="{{ $folder->is_starred ? '1' : '0' }}"
      data-locked="{{ $isLockedTree ? '1' : '0' }}">
     <div class="flex flex-col items-center text-center">
         <div class="w-11 h-11 rounded-xl bg-amber-500/15 flex items-center justify-center mb-2">
@@ -77,6 +86,9 @@
         <i class="fas fa-lock text-red-400 text-[10px] mt-1"></i>
         @endif
     </div>
+    @include('drive.partials.star-button', [
+        'kind' => 'folder', 'id' => $folder->id, 'starred' => $folder->is_starred, 'variant' => 'small',
+    ])
     @if($folder->is_hidden)
     <span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-amber-500/15 text-amber-400 text-[10px] rounded-full"><i class="fas fa-eye-slash"></i></span>
     @endif

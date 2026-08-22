@@ -8,12 +8,10 @@
     <div class="p-4 md:p-6 border-b border-navy-600 flex flex-col sm:flex-row sm:items-center gap-3">
         <h2 class="text-lg font-semibold text-white flex-1">Manajemen User</h2>
 
-        @if(auth()->user()->isSuperAdmin())
         <a href="{{ route('admin.users.create') }}"
            class="btn-primary px-4 py-2 rounded-xl flex items-center gap-2 text-sm self-start whitespace-nowrap">
             <i class="fas fa-user-plus"></i> Tambah User
         </a>
-        @endif
 
         {{-- Filter perusahaan, khusus superadmin --}}
         @if($companies->count() > 0)

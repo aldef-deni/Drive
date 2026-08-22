@@ -41,6 +41,20 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                     <label class="label" for="company_id">Perusahaan</label>
+                    @if($kunciPerusahaan)
+                    {{-- Admin perusahaan tidak memilih: akunnya selalu masuk ke
+                         perusahaannya sendiri, dan server pun mengabaikan isian
+                         ini kalau sampai diubah. --}}
+                    <div class="field flex items-center gap-2 !bg-navy-800 text-slate-300">
+                        <i class="fas fa-building text-gold-500"></i>
+                        <span class="truncate">{{ $companies->first()->name }}</span>
+                        <i class="fas fa-lock text-xs text-slate-500 ml-auto"></i>
+                    </div>
+                    <input type="hidden" name="company_id" value="{{ $companies->first()->id }}">
+                    <p class="text-xs text-slate-500 mt-1.5">
+                        Akun baru selalu masuk ke perusahaan Anda.
+                    </p>
+                    @else
                     <select id="company_id" name="company_id" required class="field"
                             onchange="perbaruiKuota(this)">
                         <option value="" disabled hidden {{ old('company_id') ? '' : 'selected' }}>
@@ -53,6 +67,7 @@
                         </option>
                         @endforeach
                     </select>
+                    @endif
                     @error('company_id')<p class="text-sm text-red-400 mt-1.5">{{ $message }}</p>@enderror
                 </div>
 
@@ -102,8 +117,9 @@
                 <i class="fas fa-circle-info text-gold-500 mt-0.5"></i>
                 <p class="text-xs text-slate-400 leading-relaxed">
                     Akun langsung aktif dan bisa dipakai login saat itu juga.
-                    Kuotanya <strong class="text-slate-300" id="ringkasanKuota">mengikuti pengaturan perusahaan</strong>,
-                    dan bisa diubah kapan saja lewat menu Kuota Penyimpanan.
+                    Kuotanya <strong class="text-slate-300" id="ringkasanKuota">{{ $kunciPerusahaan ? $companies->first()->defaultQuotaGb() . ' GB' : 'mengikuti pengaturan perusahaan' }}</strong>,
+                    dan bisa diubah kapan saja lewat
+                    {{ auth()->user()->isSuperAdmin() ? 'menu Kuota Penyimpanan' : 'Manajemen User' }}.
                 </p>
             </div>
 
@@ -140,8 +156,9 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        // Admin perusahaan tidak punya select-nya; kuotanya sudah tercetak.
         const select = document.getElementById('company_id');
-        if (select.value) perbaruiKuota(select);
+        if (select && select.value) perbaruiKuota(select);
     });
 </script>
 @endpush
