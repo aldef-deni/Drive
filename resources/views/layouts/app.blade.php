@@ -231,12 +231,33 @@
         <aside id="sidebar" class="sidebar-mobile fixed md:static inset-y-0 left-0 w-64 gradient-bg text-white flex-shrink-0 flex flex-col z-50 border-r border-navy-600/70">
             <!-- Logo -->
             @php
-                // Perusahaan pengguna menggantikan identitas bawaan bila punya
-                // logo sendiri. Superadmin tidak terikat perusahaan, jadi tetap
-                // melihat identitas Dekorasi Drive.
-                $perusahaan = auth()->user()?->company;
-                $logoPerusahaan = $perusahaan?->logoUrl();
+                // Tiga identitas, dari yang paling khusus:
+                // superadmin memakai lambang Aldef Tech, pengguna perusahaan
+                // memakai logo perusahaannya, sisanya identitas bawaan.
+                $pemakai = auth()->user();
+                $perusahaan = $pemakai?->company;
+                $logoPerusahaan = $pemakai?->isSuperAdmin() ? null : $perusahaan?->logoUrl();
             @endphp
+
+            @if($pemakai?->isSuperAdmin())
+            {{-- Logo landscape: diberi ruang selebar sidebar agar terbaca --}}
+            <div class="px-5 py-5 md:py-6 border-b border-white/10 flex items-start justify-between gap-3">
+                <a href="{{ route('drive.index') }}" class="block flex-1 min-w-0 group">
+                    <img src="{{ asset('aldef-logo.png') }}" alt="Aldef Tech"
+                         class="w-full max-w-[184px] h-auto transition duration-300 group-hover:brightness-110"
+                         style="filter: drop-shadow(0 2px 10px rgba(99,102,241,.35))">
+                    <span class="flex items-center gap-2 mt-3">
+                        <span class="h-px flex-1 bg-gradient-to-r from-gold-500/50 to-transparent"></span>
+                        <span class="text-[10px] font-semibold tracking-[0.18em] text-gold-500/80 uppercase whitespace-nowrap">
+                            Superadministrator
+                        </span>
+                    </span>
+                </a>
+                <button onclick="closeSidebar()" aria-label="Tutup menu" class="md:hidden w-9 h-9 -mt-1 rounded-lg hover:bg-white/10 flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-times text-white/70"></i>
+                </button>
+            </div>
+            @else
             <div class="p-4 md:p-6 border-b border-white/10 flex items-center justify-between">
                 <a href="{{ route('drive.index') }}" class="flex items-center gap-3 min-w-0">
                     <img src="{{ $logoPerusahaan ?? asset('logo-dekorasi.png') }}"
@@ -253,6 +274,7 @@
                     <i class="fas fa-times text-white/70"></i>
                 </button>
             </div>
+            @endif
 
             <!-- Navigation -->
             <nav class="flex-1 p-4 space-y-1.5 overflow-y-auto">

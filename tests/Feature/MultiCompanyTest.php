@@ -399,6 +399,32 @@ class MultiCompanyTest extends TestCase
         $this->assertDatabaseMissing('companies', ['name' => 'PT Nakal']);
     }
 
+    public function test_sidebar_superadmin_memakai_logo_aldef(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+
+        $this->actingAs($super)->get('/drive')
+            ->assertOk()
+            ->assertSee('aldef-logo.png')
+            ->assertSee('Superadministrator');
+
+        $this->assertFileExists(public_path('aldef-logo.png'),
+            'Berkas logonya harus ikut terkirim, bukan hanya dirujuk');
+    }
+
+    public function test_logo_aldef_tidak_bocor_ke_peran_lain(): void
+    {
+        $company = $this->company('PT Biasa');
+
+        // Lambang Aldef Tech menandai peran tertinggi; kalau muncul di sidebar
+        // orang lain, penandanya kehilangan arti.
+        foreach ([User::ROLE_ADMIN, User::ROLE_USER] as $peran) {
+            $this->actingAs($this->user($company, $peran))->get('/drive')
+                ->assertOk()
+                ->assertDontSee('aldef-logo.png');
+        }
+    }
+
     // ------------------------------------- Pembuatan akun oleh superadmin
 
     public function test_superadmin_membuat_akun_yang_langsung_aktif(): void
