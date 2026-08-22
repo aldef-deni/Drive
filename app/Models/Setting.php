@@ -70,12 +70,47 @@ class Setting extends Model
         static::put(self::HIDDEN_KEYWORD, self::ENC_PREFIX . Crypt::encryptString($keyword));
     }
 
+    /** Belum pernah diganti, kata kunci bawaan yang berlaku. */
+    public const STATE_DEFAULT = 'default';
+
+    /** Tersimpan terenkripsi dan bisa ditampilkan. */
+    public const STATE_READABLE = 'readable';
+
+    /** Hash versi lama: masih berlaku, tetapi tidak bisa dibaca balik. */
+    public const STATE_LEGACY = 'legacy';
+
+    /** Terenkripsi tetapi gagal dibuka — APP_KEY berubah setelah disimpan. */
+    public const STATE_UNREADABLE = 'unreadable';
+
+    /**
+     * Bentuk penyimpanan kata kunci saat ini.
+     *
+     * Dibedakan karena penanganannya berbeda: hash lama cukup dikonversi
+     * dengan mengetik ulang kata kuncinya, sedangkan nilai yang gagal dibuka
+     * berarti kata kuncinya benar-benar hilang dan wajib diganti.
+     */
+    public static function hiddenKeywordState(): string
+    {
+        $nilai = static::get(self::HIDDEN_KEYWORD);
+
+        if (!$nilai) {
+            return self::STATE_DEFAULT;
+        }
+
+        if (!str_starts_with($nilai, self::ENC_PREFIX)) {
+            return self::STATE_LEGACY;
+        }
+
+        return static::bukaTerenkripsi($nilai) === null
+            ? self::STATE_UNREADABLE
+            : self::STATE_READABLE;
+    }
+
     /**
      * Kata kunci yang sedang berlaku, apa adanya.
      *
-     * Mengembalikan null bila nilainya masih hash bcrypt dari versi lama —
-     * hash tidak bisa dibaca balik, jadi kata kunci itu harus diganti sekali
-     * agar bisa ditampilkan.
+     * Mengembalikan null bila nilainya belum bisa ditampilkan — lihat
+     * hiddenKeywordState() untuk alasannya.
      */
     public static function hiddenKeywordPlain(): ?string
     {
@@ -89,12 +124,44 @@ class Setting extends Model
             return null; // hash lama, tidak bisa dipulihkan
         }
 
+        return static::bukaTerenkripsi($nilai);
+    }
+
+    private static function bukaTerenkripsi(string $nilai): ?string
+    {
         try {
             return Crypt::decryptString(substr($nilai, strlen(self::ENC_PREFIX)));
         } catch (\Throwable $e) {
             // APP_KEY berubah setelah nilai ini disimpan.
             return null;
         }
+    }
+
+    /**
+     * Ubah hash versi lama menjadi bentuk terenkripsi, tanpa mengganti kata
+     * kuncinya. Dipakai agar kata kunci yang sudah beredar tetap berlaku
+     * sekaligus bisa ditampilkan kembali.
+     *
+     * Mengembalikan false bila kata kunci yang diketik tidak cocok.
+     */
+    public static function konversiHiddenKeyword(string $keyword): bool
+    {
+        if (!static::matchesHiddenKeyword($keyword)) {
+            return false;
+        }
+
+        // Konversi bukan penggantian, jadi "terakhir diperbarui" dipertahankan
+        // supaya tidak terbaca seolah kata kuncinya baru saja diganti.
+        $sebelumnya = static::hiddenKeywordUpdatedAt();
+
+        static::setHiddenKeyword(trim($keyword));
+
+        if ($sebelumnya) {
+            static::query()->where('key', self::HIDDEN_KEYWORD)
+                ->update(['updated_at' => $sebelumnya]);
+        }
+
+        return true;
     }
 
     /**

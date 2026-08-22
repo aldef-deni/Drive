@@ -244,8 +244,33 @@ class AdminController extends Controller
             'isDefault' => Setting::get(Setting::HIDDEN_KEYWORD) === null,
             'updatedAt' => Setting::hiddenKeywordUpdatedAt(),
             'keyword' => $terlihat ? Setting::hiddenKeywordPlain() : null,
+            'keywordState' => Setting::hiddenKeywordState(),
             'canReveal' => $terlihat,
         ]);
+    }
+
+    /**
+     * Buka tampilan kata kunci yang tersimpan dalam bentuk hash versi lama.
+     *
+     * Kata kuncinya tidak diganti - cukup diketik ulang untuk dibuktikan, lalu
+     * disimpan ulang dalam bentuk terenkripsi agar bisa ditampilkan. Ini
+     * menghindari keharusan mengganti kata kunci yang sudah beredar hanya
+     * demi bisa melihatnya.
+     */
+    public function revealHiddenKeyword(Request $request)
+    {
+        $request->validate([
+            'keyword' => ['required', 'string', 'max:64'],
+        ], [], ['keyword' => 'kata kunci']);
+
+        if (!Setting::konversiHiddenKeyword($request->keyword)) {
+            return back()->withErrors([
+                'keyword' => 'Kata kunci tidak cocok dengan yang sedang berlaku.',
+            ]);
+        }
+
+        return redirect()->route('admin.hidden')
+            ->with('success', 'Kata kunci berhasil ditampilkan. Nilainya tidak diubah.');
     }
 
     /**
