@@ -1048,10 +1048,17 @@ class DriveFlowTest extends TestCase
     public function test_error_validasi_api_tetap_informatif(): void
     {
         // Penyeragaman tidak boleh ikut menelan pesan yang memang untuk pengguna.
+        // Kolomnya menerima email maupun username, jadi yang diuji di sini
+        // adalah isian yang benar-benar kosong.
         $this->withHeaders(['Accept' => 'application/json'])
-            ->post('/api/login', ['email' => 'bukan-email'])
+            ->post('/api/login', ['password' => 'apa-saja'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('email');
+
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->post('/api/login', ['email' => 'namapengguna'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('password');
     }
 
     public function test_route_api_hidup_tanpa_sanctum(): void
