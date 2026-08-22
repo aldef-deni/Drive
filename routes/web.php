@@ -77,8 +77,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
     // Hidden System — pengaturan kata kunci rahasia untuk memunculkan file tersembunyi
     Route::get('/hidden-system', [AdminController::class, 'hiddenSystem'])->name('admin.hidden');
     Route::put('/hidden-system', [AdminController::class, 'updateHiddenKeyword'])->name('admin.hidden.update');
-    Route::post('/hidden-system/reveal', [AdminController::class, 'revealHiddenKeyword'])
-        ->middleware('superadmin')->name('admin.hidden.reveal');
 
     // Pengelolaan perusahaan — khusus superadministrator
     Route::middleware('superadmin')->prefix('companies')->group(function () {

@@ -85,9 +85,9 @@ class Setting extends Model
     /**
      * Bentuk penyimpanan kata kunci saat ini.
      *
-     * Dibedakan karena penanganannya berbeda: hash lama cukup dikonversi
-     * dengan mengetik ulang kata kuncinya, sedangkan nilai yang gagal dibuka
-     * berarti kata kuncinya benar-benar hilang dan wajib diganti.
+     * Dibedakan karena pesannya ke pengguna berbeda: hash versi lama masih
+     * berlaku dan hanya perlu diganti sekali, sedangkan nilai yang gagal
+     * dibuka berarti kata kuncinya benar-benar sudah tidak berfungsi.
      */
     public static function hiddenKeywordState(): string
     {
@@ -137,32 +137,6 @@ class Setting extends Model
         }
     }
 
-    /**
-     * Ubah hash versi lama menjadi bentuk terenkripsi, tanpa mengganti kata
-     * kuncinya. Dipakai agar kata kunci yang sudah beredar tetap berlaku
-     * sekaligus bisa ditampilkan kembali.
-     *
-     * Mengembalikan false bila kata kunci yang diketik tidak cocok.
-     */
-    public static function konversiHiddenKeyword(string $keyword): bool
-    {
-        if (!static::matchesHiddenKeyword($keyword)) {
-            return false;
-        }
-
-        // Konversi bukan penggantian, jadi "terakhir diperbarui" dipertahankan
-        // supaya tidak terbaca seolah kata kuncinya baru saja diganti.
-        $sebelumnya = static::hiddenKeywordUpdatedAt();
-
-        static::setHiddenKeyword(trim($keyword));
-
-        if ($sebelumnya) {
-            static::query()->where('key', self::HIDDEN_KEYWORD)
-                ->update(['updated_at' => $sebelumnya]);
-        }
-
-        return true;
-    }
 
     /**
      * Apakah teks yang diketik pengguna cocok dengan kata kunci rahasia?

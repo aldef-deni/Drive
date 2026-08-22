@@ -99,40 +99,21 @@
                 @endif
             </p>
             @elseif($keywordState === \App\Models\Setting::STATE_LEGACY)
-            {{-- Hash versi lama: cukup diketik ulang untuk dibuka, tanpa diganti --}}
-            <div class="flex gap-3 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl mb-5">
-                <i class="fas fa-circle-info text-amber-400 mt-0.5"></i>
-                <div class="text-sm text-amber-200/90 leading-relaxed">
-                    <p class="font-medium text-amber-300 mb-1">Kata kunci belum bisa ditampilkan</p>
+            {{-- Sisa data versi lama: hash searah, tidak mungkin ditampilkan --}}
+            <div class="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                <i class="fas fa-circle-info text-amber-400 sm:mt-0.5"></i>
+                <div class="flex-1 text-sm text-amber-200/90 leading-relaxed min-w-0">
+                    <p class="font-medium text-amber-300 mb-1">Kata kunci ini dari versi lama</p>
                     <p class="text-xs">
-                        Kata kunci ini disimpan versi lama dengan cara satu arah, jadi sistem sendiri
-                        tidak bisa membacanya. Ketik kata kunci yang sedang berlaku sekali di bawah ini
-                        &mdash; nilainya <strong>tidak diganti</strong>, hanya disimpan ulang supaya
-                        bisa ditampilkan seterusnya.
+                        Disimpan dengan cara yang tidak bisa dibaca balik, bahkan oleh sistem sendiri.
+                        Tetapkan kata kunci sekali lewat formulir di bawah &mdash; setelah itu
+                        nilainya selalu tampil di sini, termasuk kalau nanti lupa.
                     </p>
                 </div>
+                <a href="#gantiKataKunci" class="btn-primary px-5 py-2.5 rounded-xl text-sm whitespace-nowrap text-center">
+                    <i class="fas fa-arrow-down mr-2"></i>Tetapkan
+                </a>
             </div>
-
-            <form action="{{ route('admin.hidden.reveal') }}" method="POST" class="flex flex-col sm:flex-row gap-3">
-                @csrf
-                <div class="relative flex-1">
-                    <input type="password" id="revealKeyword" name="keyword" required maxlength="64"
-                        class="field !pr-11" placeholder="Kata kunci yang sedang berlaku">
-                    <button type="button" onclick="toggleKeyword('revealKeyword', this)" aria-label="Tampilkan kata kunci"
-                        class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-gold-500">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </div>
-                <button type="submit" class="btn-primary px-6 py-3 rounded-xl whitespace-nowrap">
-                    <i class="fas fa-unlock mr-2"></i>Buka Tampilan
-                </button>
-            </form>
-            @error('keyword')<p class="text-sm text-red-400 mt-2">{{ $message }}</p>@enderror
-
-            <p class="text-xs text-slate-500 mt-3">
-                Lupa kata kuncinya? Ganti saja lewat formulir di bawah &mdash; kata kunci baru
-                langsung terlihat di sini.
-            </p>
 
             @else
             {{-- Terenkripsi tetapi gagal dibuka: APP_KEY server berubah --}}
@@ -154,7 +135,7 @@
     @endif
 
     {{-- Form ganti kata kunci --}}
-    <div class="panel overflow-hidden">
+    <div class="panel overflow-hidden" id="gantiKataKunci">
         <div class="p-6 border-b border-navy-600">
             <h2 class="text-lg font-semibold text-white"><i class="fas fa-key text-gold-500 mr-2"></i>Ganti Kata Kunci</h2>
         </div>

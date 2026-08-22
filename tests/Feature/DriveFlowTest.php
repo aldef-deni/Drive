@@ -512,44 +512,29 @@ class DriveFlowTest extends TestCase
             ->assertSee('lewatFormulir9');
     }
 
-    public function test_kata_kunci_hash_lama_bisa_dibuka_tanpa_diganti(): void
+    public function test_kata_kunci_versi_lama_diganti_sekali_lalu_selalu_terlihat(): void
     {
+        // Sisa data versi lama berbentuk hash searah; tidak ada cara membacanya,
+        // jadi halaman harus mengarahkan ke penggantian, bukan menjanjikan lebih.
         Setting::put(Setting::HIDDEN_KEYWORD, Hash::make('kunciLama77'));
-        $waktuAsli = Setting::hiddenKeywordUpdatedAt();
 
         $super = $this->makeUser(['role' => User::ROLE_SUPERADMIN, 'company_id' => null]);
 
-        // Kata kunci salah tidak boleh membuka apa pun.
-        $this->actingAs($super)->post('/admin/hidden-system/reveal', ['keyword' => 'ngasal99'])
-            ->assertSessionHasErrors('keyword');
-        $this->assertNull(Setting::hiddenKeywordPlain());
+        $this->actingAs($super)->get('/admin/hidden-system')
+            ->assertOk()
+            ->assertSee('Kata kunci ini dari versi lama');
 
-        // Kata kunci benar: nilainya tetap sama, hanya cara simpannya berubah.
-        $this->actingAs($super)->post('/admin/hidden-system/reveal', ['keyword' => 'kunciLama77'])
-            ->assertRedirect(route('admin.hidden'))
-            ->assertSessionHas('success');
+        $this->actingAs($super)->put('/admin/hidden-system', [
+            'current_password' => 'password123',
+            'keyword' => 'kunciBaru88',
+            'keyword_confirmation' => 'kunciBaru88',
+        ])->assertRedirect(route('admin.hidden'));
 
-        $this->assertSame('kunciLama77', Setting::hiddenKeywordPlain());
-        $this->assertTrue(Setting::matchesHiddenKeyword('kunciLama77'),
-            'Kata kunci yang sudah beredar harus tetap berlaku setelah dikonversi');
-
-        $this->actingAs($super)->get('/admin/hidden-system')->assertOk()->assertSee('kunciLama77');
-
-        // Konversi bukan penggantian, jadi waktunya tidak boleh ikut bergeser.
-        $this->assertEquals($waktuAsli, Setting::hiddenKeywordUpdatedAt());
-    }
-
-    public function test_buka_tampilan_kata_kunci_hanya_untuk_superadmin(): void
-    {
-        Setting::put(Setting::HIDDEN_KEYWORD, Hash::make('kunciLama77'));
-
-        $admin = $this->makeUser(['role' => User::ROLE_ADMIN]);
-
-        $this->actingAs($admin)->post('/admin/hidden-system/reveal', ['keyword' => 'kunciLama77'])
-            ->assertForbidden();
-
-        $this->assertNull(Setting::hiddenKeywordPlain(),
-            'Admin perusahaan tidak boleh memicu konversi');
+        // Sekali diganti, nilainya tampil apa adanya - termasuk saat lupa nanti.
+        $this->actingAs($super)->get('/admin/hidden-system')
+            ->assertOk()
+            ->assertSee('kunciBaru88')
+            ->assertDontSee('Kata kunci ini dari versi lama');
     }
 
     public function test_kata_kunci_gagal_didekripsi_dibedakan_dari_hash_lama(): void
@@ -566,12 +551,12 @@ class DriveFlowTest extends TestCase
 
         $super = $this->makeUser(['role' => User::ROLE_SUPERADMIN, 'company_id' => null]);
 
-        // Menawarkan "buka tampilan" di sini menyesatkan - kata kuncinya benar
-        // benar hilang, satu-satunya jalan adalah menetapkan yang baru.
+        // Pesannya harus berbeda dari sisa data versi lama: yang ini kata
+        // kuncinya benar-benar hilang, bukan sekadar tidak terbaca.
         $this->actingAs($super)->get('/admin/hidden-system')
             ->assertOk()
             ->assertSee('APP_KEY')
-            ->assertDontSee('Buka Tampilan');
+            ->assertDontSee('Kata kunci ini dari versi lama');
     }
 
     public function test_admin_perusahaan_tidak_melihat_kata_kunci_aktif(): void
