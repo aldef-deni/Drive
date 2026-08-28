@@ -45,14 +45,14 @@ PENANDA_GAGAL="${APP_DIR}/storage/deploy-gagal"
 # menaruh PHP di /www/server/php/<versi>/bin. Mengandalkan `command -v` saja
 # membuat skrip ini jalan mulus saat diuji manual lalu gagal diam-diam di cron.
 
+# Kandidat diperiksa lebih dulu, baru PATH. Di aaPanel, `command -v php`
+# menunjuk /usr/bin/php - PHP sistem yang ekstensinya belum tentu sama dengan
+# PHP yang dipakai situsnya. Artisan yang jalan di PHP keliru gagal dengan
+# pesan yang membingungkan.
 cari_program() {
     local nama="$1"; shift
 
-    local ketemu
-    ketemu=$(command -v "$nama" 2>/dev/null || true)
-    if [ -n "$ketemu" ]; then printf '%s' "$ketemu"; return 0; fi
-
-    local kandidat
+    local kandidat berkas
     for kandidat in "$@"; do
         # Versi PHP aaPanel dicari dari yang terbaru.
         for berkas in $(ls -d $kandidat 2>/dev/null | sort -rV); do
@@ -60,12 +60,24 @@ cari_program() {
         done
     done
 
+    local ketemu
+    ketemu=$(command -v "$nama" 2>/dev/null || true)
+    if [ -n "$ketemu" ]; then printf '%s' "$ketemu"; return 0; fi
+
     return 1
 }
 
 PHP="${PHP:-$(cari_program php '/www/server/php/*/bin/php' /usr/local/bin/php /usr/bin/php || true)}"
-COMPOSER="${COMPOSER:-$(cari_program composer /usr/local/bin/composer /usr/bin/composer '/www/server/php/*/bin/composer' || true)}"
+COMPOSER="${COMPOSER:-$(cari_program composer '/home/*/bin/composer' /usr/local/bin/composer /usr/bin/composer || true)}"
 MYSQLDUMP="${MYSQLDUMP:-$(cari_program mysqldump /www/server/mysql/bin/mysqldump /usr/bin/mysqldump || true)}"
+
+# Git menolak bekerja di repositori milik user lain ("dubious ownership").
+# Berkas situs ini milik www, sedangkan cron berjalan sebagai root - tanpa ini
+# setiap perintah git gagal, dan skripnya hanya akan diam mencoba lagi tiap
+# 2 menit selamanya. Diberikan per-perintah, bukan mengubah konfigurasi global.
+g() {
+    git -c safe.directory="$APP_DIR" "$@"
+}
 
 # ============================================================== Pembantu
 
@@ -158,14 +170,17 @@ jalankan() {
         return 1
     fi
 
-    git fetch --quiet origin "$BRANCH" 2>>"$LOG" || {
-        catat "PERINGATAN: gagal menghubungi GitHub. Dicoba lagi nanti."
+    if ! g fetch --quiet origin "$BRANCH" 2>>"$LOG"; then
+        # Bisa gangguan jaringan sesaat (wajar, dicoba lagi 2 menit lagi), bisa
+        # juga hak akses yang salah - dan yang kedua tidak akan pernah membaik
+        # sendiri. Pesan aslinya sudah tercatat di log tepat di atas baris ini.
+        catat "PERINGATAN: git fetch gagal. Periksa pesan di atas bila berulang."
         return 0
-    }
+    fi
 
     local sekarang tujuan
-    sekarang=$(git rev-parse HEAD)
-    tujuan=$(git rev-parse "origin/${BRANCH}")
+    sekarang=$(g rev-parse HEAD)
+    tujuan=$(g rev-parse "origin/${BRANCH}")
 
     # Tidak ada yang baru: keluar tanpa menulis apa pun. Ini jalur yang dilalui
     # 99% dari 720 kali eksekusi per hari.
@@ -173,7 +188,7 @@ jalankan() {
 
     catat "----------------------------------------------------------------"
     catat "Commit baru: ${sekarang:0:8} -> ${tujuan:0:8}"
-    catat "$(git log -1 --format='%s' "$tujuan")"
+    catat "$(g log -1 --format='%s' "$tujuan")"
 
     cadangkan_database || return 1
 
@@ -182,13 +197,13 @@ jalankan() {
     "$PHP" artisan down --retry=30 >/dev/null 2>&1 || true
 
     local berubah
-    berubah=$(git diff --name-only "$sekarang" "$tujuan")
+    berubah=$(g diff --name-only "$sekarang" "$tujuan")
 
     # reset --hard, bukan pull: server harus persis sama dengan repo, dan
     # perubahan lokal di server tidak pernah dimaksudkan untuk dipertahankan.
     # TANPA git clean - berkas pengguna di storage/ tidak terlacak git dan
     # harus tetap ada.
-    if ! git reset --hard "$tujuan" >>"$LOG" 2>&1; then
+    if ! g reset --hard "$tujuan" >>"$LOG" 2>&1; then
         catat "GAGAL memperbarui kode."
         return 1
     fi
@@ -255,7 +270,7 @@ fi
 
 trap bersihkan EXIT
 
-SEBELUM=$(cd "$APP_DIR" && git rev-parse HEAD 2>/dev/null || echo '')
+SEBELUM=$(cd "$APP_DIR" && git -c safe.directory="$APP_DIR" rev-parse HEAD 2>/dev/null || echo '')
 
 if jalankan; then
     exit 0
@@ -267,7 +282,7 @@ catat "DEPLOY GAGAL. Mengembalikan kode ke ${SEBELUM:0:8}."
 cd "$APP_DIR" || exit 1
 
 if [ -n "$SEBELUM" ]; then
-    git reset --hard "$SEBELUM" >>"$LOG" 2>&1 || catat "GAGAL mengembalikan kode."
+    g reset --hard "$SEBELUM" >>"$LOG" 2>&1 || catat "GAGAL mengembalikan kode."
     "$PHP" artisan config:clear >/dev/null 2>&1 || true
     "$PHP" artisan config:cache >>"$LOG" 2>&1 || true
     "$PHP" artisan route:cache  >>"$LOG" 2>&1 || true

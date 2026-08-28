@@ -16,10 +16,20 @@ Bawaan skrip sudah disetel untuk **aaPanel**:
 | `BACKUP_DIR` | `/www/backup/drive-deploy` |
 | `LOG` | `/www/wwwlogs/aldeftech-deploy.log` |
 
-PHP, composer, dan mysqldump dicari sendiri, termasuk di `/www/server/php/*/bin`.
-Ini penting: **cron berjalan dengan PATH yang sangat minim**, sehingga skrip
-yang hanya mengandalkan `php` polos akan jalan mulus saat diuji manual lalu
-gagal diam-diam begitu dijadwalkan.
+PHP, composer, dan mysqldump dicari sendiri, dan **lokasi aaPanel diutamakan
+di atas PATH**. Dua alasan:
+
+- Cron berjalan dengan PATH yang sangat minim, sehingga skrip yang mengandalkan
+  `php` polos akan jalan mulus saat diuji manual lalu gagal diam-diam begitu
+  dijadwalkan.
+- Di server ini `command -v php` menunjuk `/usr/bin/php` — PHP sistem, bukan
+  `/www/server/php/84/bin/php` yang dipakai situsnya. Ekstensinya belum tentu
+  sama, dan artisan yang jalan di PHP keliru gagal dengan pesan membingungkan.
+
+Setiap perintah git dijalankan dengan `safe.directory`. Berkas situs milik
+`www` sedangkan cron berjalan sebagai `root`, dan tanpa itu git menolak bekerja
+dengan pesan *"detected dubious ownership"* — kegagalan yang akan terulang diam
+diam tiap 2 menit selamanya.
 
 ---
 
@@ -129,6 +139,15 @@ sudo ssh-keyscan github.com | sudo tee -a /root/.ssh/known_hosts >/dev/null
 
 ## 2. Pasang skrip dan cron
 
+> **User `aldeftech` tidak punya sudo.** Seluruh langkah di bawah dijalankan
+> dari **panel aaPanel**, bukan dari SSH-in-browser:
+>
+> - **Terminal** di aaPanel berjalan sebagai `root`
+> - **Cron** di aaPanel juga berjalan sebagai `root`
+>
+> Jadi abaikan awalan `sudo` bila Anda menjalankannya dari Terminal aaPanel —
+> Anda memang sudah root di sana.
+
 ```bash
 sudo install -m 755 /www/wwwroot/drive.aldeftech.com/deploy/auto-deploy.sh \
      /usr/local/bin/auto-deploy.sh
@@ -149,22 +168,24 @@ echo "kode keluar: $?"      # 0 = aman
 sudo tail -20 /www/wwwlogs/aldeftech-deploy.log
 ```
 
-Kalau aman, pasang cron. **Jalankan sebagai root**, supaya skripnya bisa
-mengembalikan kepemilikan berkas ke `www` setelah menarik kode baru:
+Kalau aman, pasang jadwalnya lewat **aaPanel → Cron**:
 
-```bash
-sudo crontab -e
-```
+| Kolom | Isi |
+| --- | --- |
+| Type of Task | Shell Script |
+| Name | Deploy Aldef Tech Drive |
+| Period | N Minutes → **2** |
+| Script | `/usr/local/bin/auto-deploy.sh` |
 
-Tambahkan satu baris:
+Kalau nanti Anda punya akses root lewat SSH, `crontab -e` juga bisa dipakai:
 
 ```
 */2 * * * * /usr/local/bin/auto-deploy.sh
 ```
 
-> aaPanel juga punya menu **Cron** sendiri. Pakai salah satu saja, jangan
-> keduanya — dua penjadwal yang menjalankan skrip yang sama hanya menambah
-> kemungkinan bertabrakan.
+> Pakai **salah satu** saja. Dua penjadwal yang menjalankan skrip yang sama
+> hanya menambah kemungkinan bertabrakan — meskipun kuncinya sudah mencegah
+> dua deploy berjalan bersamaan.
 
 ---
 
