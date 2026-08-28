@@ -1,11 +1,69 @@
 # Deploy Otomatis
 
-Server memeriksa GitHub setiap 2 menit. Ada commit baru → aplikasi diperbarui
-sendiri. Tidak ada commit baru → keluar dalam sepersekian detik tanpa menulis
-apa pun.
+Ada dua jalan, dan **yang pertama lebih disarankan** karena memakai mesin yang
+sudah ada di server.
 
-Tidak memakai GitHub Actions dengan sengaja: tidak ada komputasi di pihak
-GitHub, dan tidak ada kredensial server yang perlu dititipkan ke sana.
+---
+
+## Jalan 1 — aaPanel Git Manager (disarankan)
+
+aaPanel sudah punya mesin deploy sendiri: menarik kode dari GitHub, menyimpan
+riwayat, dan bisa rollback beberapa versi ke belakang. Ditambah **Webhook**,
+deploy terjadi **seketika** setiap push — bukan menunggu giliran cron.
+
+Yang tidak diketahui aaPanel adalah langkah-langkah Laravel sesudahnya. Itu
+diisi lewat tab **Script**.
+
+### a. Isi tab Script
+
+Site → **Git Manager** → tab **Script**. Tempel isi berkas
+[`aapanel-post-deploy.sh`](aapanel-post-deploy.sh).
+
+Skrip itu mengerjakan, berurutan:
+
+1. Cadangkan database (gagal mencadangkan → migrasi dibatalkan)
+2. Nyalakan mode pemeliharaan
+3. `composer install --no-dev`
+4. `php artisan migrate --force`
+5. Bangun ulang cache config, route, view
+6. Kembalikan kepemilikan berkas ke `www`
+7. Matikan mode pemeliharaan
+
+Jalur lengkap dipakai untuk PHP dan composer, bukan nama programnya saja —
+`php` polos di server ini menunjuk `/usr/bin/php`, PHP sistem, bukan PHP 8.4
+yang dipakai situsnya.
+
+### b. Nyalakan Webhook
+
+Site → Git Manager → tab **Webhook**. Salin URL yang muncul, lalu di GitHub:
+repo → **Settings → Webhooks → Add webhook**, tempel URL-nya, pilih
+*Just the push event*.
+
+Setelah itu setiap push langsung ter-deploy.
+
+### c. Deploy pertama
+
+Tekan **Deploy latest** di Git Manager. Server sekarang tertinggal beberapa
+commit, jadi ini menyusulkannya sekaligus menguji seluruh rangkaiannya.
+
+### Catatan
+
+**Rollback aaPanel hanya mengembalikan kode, bukan database.** Kalau migrasi
+gagal separuh jalan, pulihkan database dari cadangan di
+`/www/backup/drive-deploy/`:
+
+```bash
+gunzip < /www/backup/drive-deploy/<berkas>.sql.gz | mysql -u <user> -p <database>
+```
+
+**Ignored path changes** sudah terisi `/.env`, `/storage`, `/bootstrap/cache` —
+biarkan begitu. Ketiganya memang tidak boleh ikut ditimpa.
+
+---
+
+## Jalan 2 — cron sendiri
+
+Dipakai bila Git Manager tidak dipakai, atau di server tanpa aaPanel.
 
 Bawaan skrip sudah disetel untuk **aaPanel**:
 
@@ -33,7 +91,7 @@ diam tiap 2 menit selamanya.
 
 ---
 
-## 0. Periksa dulu
+### 0. Periksa dulu
 
 Jalankan ini di server, dan cocokkan hasilnya dengan tabel di atas:
 
@@ -52,7 +110,7 @@ Kalau ada yang berbeda, sunting bagian **Pengaturan** di kepala
 
 ---
 
-## 1. Ubah folder aplikasi menjadi kloning git
+### 1. Ubah folder aplikasi menjadi kloning git
 
 > **Lewati langkah ini bila folder aplikasi sudah kloning git.** Periksa dengan:
 >
@@ -113,7 +171,7 @@ sudo -u www "$PHP" artisan view:cache
 Buka situsnya. Kalau normal, hapus `/www/wwwroot/drive-lama` setelah beberapa
 hari — jangan buru-buru.
 
-### Repo privat
+#### Repo privat
 
 Repo privat butuh kredensial setiap kali `git fetch`. Cron berjalan sebagai
 `root`, jadi yang harus punya kredensial itu **root** — bukan user SSH Anda,
@@ -130,7 +188,7 @@ Selesai tanpa pesan → sudah beres, lanjut ke langkah 2. Kalau muncul
 `Username for 'https://github.com'` atau `Authentication failed`, pilih salah
 satu di bawah.
 
-#### Pilihan A — deploy key SSH (disarankan)
+##### Pilihan A — deploy key SSH (disarankan)
 
 Tidak kedaluwarsa, dan aksesnya bisa dibatasi baca-saja pada satu repo:
 
@@ -161,7 +219,7 @@ ssh-keyscan github.com >> /root/.ssh/known_hosts
 git -c safe.directory='*' fetch --dry-run
 ```
 
-#### Pilihan B — token lewat HTTPS
+##### Pilihan B — token lewat HTTPS
 
 Lebih cepat, tetapi tokennya bisa kedaluwarsa dan tersimpan sebagai teks biasa
 di `/root/.git-credentials` (hanya root yang bisa membacanya).
@@ -181,7 +239,7 @@ Fetch berikutnya tidak akan bertanya lagi.
 
 ---
 
-## 2. Pasang skrip dan cron
+### 2. Pasang skrip dan cron
 
 > **User `aldeftech` tidak punya sudo.** Seluruh langkah di bawah dijalankan
 > dari **panel aaPanel**, bukan dari SSH-in-browser:
@@ -233,7 +291,7 @@ Kalau nanti Anda punya akses root lewat SSH, `crontab -e` juga bisa dipakai:
 
 ---
 
-## 3. Memantau
+### 3. Memantau
 
 ```bash
 # Riwayat deploy
@@ -251,7 +309,7 @@ Cadangan database ada di `/www/backup/drive-deploy/`, 14 terakhir disimpan.
 
 ---
 
-## Yang dilakukan skrip saat ada commit baru
+### Yang dilakukan skrip saat ada commit baru
 
 1. Cadangkan database (deploy dibatalkan bila pencadangan gagal)
 2. Nyalakan mode pemeliharaan
@@ -265,7 +323,7 @@ Cadangan database ada di `/www/backup/drive-deploy/`, 14 terakhir disimpan.
 Gagal di langkah mana pun → kode dikembalikan ke commit sebelumnya, cache
 dibangun ulang, situs dinyalakan lagi, dan penanda kegagalan ditulis.
 
-## Yang TIDAK dilakukan skrip
+### Yang TIDAK dilakukan skrip
 
 **Tidak memulihkan database secara otomatis.** Kalau migrasi gagal separuh
 jalan, pemulihan otomatis akan membuang data yang ditulis pengguna sejak
@@ -280,7 +338,7 @@ melewatinya.
 
 ---
 
-## Mematikan sementara
+### Mematikan sementara
 
 ```bash
 sudo crontab -e     # beri tanda # di depan barisnya
