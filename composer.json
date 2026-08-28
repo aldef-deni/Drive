@@ -64,8 +64,7 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
-        },
-        "cache-dir": "/home/dekn3383/public_html/drive.dekorasi.me/cache"
+        }
     },
     "minimum-stability": "stable",
     "prefer-stable": true

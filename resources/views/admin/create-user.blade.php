@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Tambah User - Dekorasi Drive')
+@section('title', 'Tambah User - Aldef Tech Drive')
 @section('page-title', 'Tambah User')
 
 @section('content')

@@ -33,7 +33,7 @@ class MultiCompanyTest extends TestCase
         return User::create(array_merge([
             'company_id' => $company?->id,
             'name' => 'Pengguna ' . uniqid(),
-            'email' => 'u' . uniqid() . '@dekorasi.test',
+            'email' => 'u' . uniqid() . '@aldeftech.test',
             'password' => Hash::make('password123'),
             'role' => $role,
             'storage_quota' => User::DEFAULT_STORAGE_QUOTA,
@@ -262,12 +262,12 @@ class MultiCompanyTest extends TestCase
 
         $this->actingAs($super)->post('/admin/companies/' . $company->id . '/admin', [
             'name' => 'Admin Baru',
-            'email' => 'adminbaru@dekorasi.test',
+            'email' => 'adminbaru@aldeftech.test',
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertRedirect();
 
-        $admin = User::where('email', 'adminbaru@dekorasi.test')->firstOrFail();
+        $admin = User::where('email', 'adminbaru@aldeftech.test')->firstOrFail();
 
         $this->assertSame(User::ROLE_ADMIN, $admin->role);
         $this->assertSame($company->id, $admin->company_id);
@@ -450,14 +450,14 @@ class MultiCompanyTest extends TestCase
 
         $this->actingAs($admin)->post('/admin/users', [
             'name' => 'Anggota Baru',
-            'email' => 'anggotabaru@dekorasi.test',
+            'email' => 'anggotabaru@aldeftech.test',
             'company_id' => $company->id,
             'role' => User::ROLE_USER,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertRedirect(route('admin.users'))->assertSessionHas('success');
 
-        $baru = User::where('email', 'anggotabaru@dekorasi.test')->firstOrFail();
+        $baru = User::where('email', 'anggotabaru@aldeftech.test')->firstOrFail();
 
         $this->assertSame($company->id, $baru->company_id);
         $this->assertTrue($baru->is_active);
@@ -474,14 +474,14 @@ class MultiCompanyTest extends TestCase
         // dikirim - jadi servernya yang harus menolak, bukan tampilannya.
         $this->actingAs($admin)->post('/admin/users', [
             'name' => 'Selundupan',
-            'email' => 'selundup@dekorasi.test',
+            'email' => 'selundup@aldeftech.test',
             'company_id' => $orang->id,
             'role' => User::ROLE_USER,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertRedirect();
 
-        $baru = User::where('email', 'selundup@dekorasi.test')->firstOrFail();
+        $baru = User::where('email', 'selundup@aldeftech.test')->firstOrFail();
 
         $this->assertSame($milik->id, $baru->company_id,
             'Akun harus tetap masuk ke perusahaan admin yang membuatnya');
@@ -512,14 +512,14 @@ class MultiCompanyTest extends TestCase
         $this->actingAs($biasa)->get('/admin/users/create')->assertForbidden();
         $this->actingAs($biasa)->post('/admin/users', [
             'name' => 'Nekat',
-            'email' => 'nekat@dekorasi.test',
+            'email' => 'nekat@aldeftech.test',
             'company_id' => $biasa->company_id,
             'role' => User::ROLE_ADMIN,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertForbidden();
 
-        $this->assertDatabaseMissing('users', ['email' => 'nekat@dekorasi.test']);
+        $this->assertDatabaseMissing('users', ['email' => 'nekat@aldeftech.test']);
     }
 
     // ------------------------------------------- Kontrak API aplikasi
@@ -626,12 +626,12 @@ class MultiCompanyTest extends TestCase
         $this->withHeaders(['Accept' => 'application/json'])
             ->post('/api/register', [
                 'name' => 'Tanpa Perusahaan',
-                'email' => 'tanpa@dekorasi.test',
+                'email' => 'tanpa@aldeftech.test',
                 'password' => 'rahasia12345',
                 'password_confirmation' => 'rahasia12345',
             ])->assertStatus(422);
 
-        $this->assertDatabaseMissing('users', ['email' => 'tanpa@dekorasi.test']);
+        $this->assertDatabaseMissing('users', ['email' => 'tanpa@aldeftech.test']);
     }
 
     public function test_api_register_lewat_aplikasi_mengikat_ke_perusahaan(): void
@@ -641,13 +641,13 @@ class MultiCompanyTest extends TestCase
         $this->withHeaders(['Accept' => 'application/json'])
             ->post('/api/register', [
                 'name' => 'Pendaftar App',
-                'email' => 'app@dekorasi.test',
+                'email' => 'app@aldeftech.test',
                 'password' => 'rahasia12345',
                 'password_confirmation' => 'rahasia12345',
                 'company_id' => $company->id,
             ])->assertOk()->assertJson(['success' => true]);
 
-        $baru = User::where('email', 'app@dekorasi.test')->firstOrFail();
+        $baru = User::where('email', 'app@aldeftech.test')->firstOrFail();
 
         $this->assertSame($company->id, $baru->company_id);
         $this->assertFalse($baru->is_active, 'Pendaftar aplikasi tetap menunggu verifikasi');
@@ -784,13 +784,13 @@ class MultiCompanyTest extends TestCase
 
         $this->withHeaders($this->bearer($super))->post('/api/admin/create-user', [
             'name' => 'Dari Aplikasi',
-            'email' => 'dariapp@dekorasi.test',
+            'email' => 'dariapp@aldeftech.test',
             'company_id' => $company->id,
             'role' => User::ROLE_ADMIN,
             'password' => 'rahasia12345',
         ])->assertOk()->assertJson(['success' => true]);
 
-        $baru = User::where('email', 'dariapp@dekorasi.test')->firstOrFail();
+        $baru = User::where('email', 'dariapp@aldeftech.test')->firstOrFail();
 
         $this->assertTrue($baru->is_active);
         $this->assertSame(User::ROLE_ADMIN, $baru->role);
@@ -805,13 +805,13 @@ class MultiCompanyTest extends TestCase
 
         $this->withHeaders($this->bearer($super))->post('/api/admin/create-user', [
             'name' => 'Calon Super',
-            'email' => 'calonsuperapi@dekorasi.test',
+            'email' => 'calonsuperapi@aldeftech.test',
             'company_id' => $company->id,
             'role' => User::ROLE_SUPERADMIN,
             'password' => 'rahasia12345',
         ])->assertStatus(422);
 
-        $this->assertDatabaseMissing('users', ['email' => 'calonsuperapi@dekorasi.test']);
+        $this->assertDatabaseMissing('users', ['email' => 'calonsuperapi@aldeftech.test']);
     }
 
     // ------------------------------------------------ Logo perusahaan
@@ -883,7 +883,7 @@ class MultiCompanyTest extends TestCase
         $this->actingAs($lain)->get('/drive')
             ->assertOk()
             ->assertDontSee('/company-logo/' . $berlogo->id)
-            ->assertSee('logo-dekorasi.png');
+            ->assertSee('aldef-logo.png');
 
         $this->bersihkanLogo();
     }
@@ -952,17 +952,46 @@ class MultiCompanyTest extends TestCase
             'Berkas logonya harus ikut terkirim, bukan hanya dirujuk');
     }
 
-    public function test_logo_aldef_tidak_bocor_ke_peran_lain(): void
+    public function test_penanda_superadministrator_tidak_bocor_ke_peran_lain(): void
     {
         $company = $this->company('PT Biasa');
 
-        // Lambang Aldef Tech menandai peran tertinggi; kalau muncul di sidebar
-        // orang lain, penandanya kehilangan arti.
+        // Logo Aldef Tech kini identitas produknya, jadi wajar terlihat semua
+        // orang. Yang menandai peran tertinggi adalah labelnya - itu yang tidak
+        // boleh muncul di sidebar orang lain.
         foreach ([User::ROLE_ADMIN, User::ROLE_USER] as $peran) {
+            $this->app['auth']->forgetGuards();
+
             $this->actingAs($this->user($company, $peran))->get('/drive')
                 ->assertOk()
-                ->assertDontSee('aldef-logo.png');
+                ->assertSee('aldef-logo.png')
+                ->assertDontSee('Superadministrator');
         }
+    }
+
+    public function test_logo_perusahaan_menggantikan_identitas_bawaan(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+
+        $this->actingAs($super)->post('/admin/companies', [
+            'name' => 'PT Berlogo Sendiri',
+            'default_quota_gb' => 1,
+            'is_active' => 1,
+            'logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.png', 100, 100),
+        ]);
+
+        $company = Company::where('name', 'PT Berlogo Sendiri')->firstOrFail();
+        $anggota = $this->user($company);
+
+        $this->app['auth']->forgetGuards();
+
+        // Perusahaan yang punya logo sendiri memakai logonya, bukan Aldef Tech.
+        $this->actingAs($anggota)->get('/drive')
+            ->assertOk()
+            ->assertSee('/company-logo/' . $company->id)
+            ->assertDontSee('aldef-logo.png');
+
+        $this->bersihkanLogo();
     }
 
     // ------------------------------------- Pembuatan akun oleh superadmin
@@ -978,14 +1007,14 @@ class MultiCompanyTest extends TestCase
 
         $this->actingAs($super)->post('/admin/users', [
             'name' => 'Karyawan Baru',
-            'email' => 'karyawan@dekorasi.test',
+            'email' => 'karyawan@aldeftech.test',
             'company_id' => $company->id,
             'role' => User::ROLE_USER,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertRedirect(route('admin.users'))->assertSessionHas('success');
 
-        $baru = User::where('email', 'karyawan@dekorasi.test')->firstOrFail();
+        $baru = User::where('email', 'karyawan@aldeftech.test')->firstOrFail();
 
         $this->assertTrue($baru->is_active, 'Akun buatan superadmin tidak perlu diverifikasi lagi');
         $this->assertSame(User::ROLE_USER, $baru->role);
@@ -995,7 +1024,7 @@ class MultiCompanyTest extends TestCase
         // Langsung bisa dipakai, tanpa langkah tambahan apa pun.
         $this->post('/logout');
         $this->assertTrue(auth()->attempt([
-            'email' => 'karyawan@dekorasi.test',
+            'email' => 'karyawan@aldeftech.test',
             'password' => 'rahasia12345',
         ]));
     }
@@ -1007,14 +1036,14 @@ class MultiCompanyTest extends TestCase
 
         $this->actingAs($super)->post('/admin/users', [
             'name' => 'Admin Baru',
-            'email' => 'adminbaru2@dekorasi.test',
+            'email' => 'adminbaru2@aldeftech.test',
             'company_id' => $company->id,
             'role' => User::ROLE_ADMIN,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertRedirect(route('admin.users'));
 
-        $admin = User::where('email', 'adminbaru2@dekorasi.test')->firstOrFail();
+        $admin = User::where('email', 'adminbaru2@aldeftech.test')->firstOrFail();
 
         $this->assertSame(User::ROLE_ADMIN, $admin->role);
         $this->assertTrue($admin->is_active);
@@ -1029,14 +1058,14 @@ class MultiCompanyTest extends TestCase
         // lewat formulir, isolasi antar perusahaan kehilangan artinya.
         $this->actingAs($super)->post('/admin/users', [
             'name' => 'Calon Super',
-            'email' => 'calonsuper@dekorasi.test',
+            'email' => 'calonsuper@aldeftech.test',
             'company_id' => $company->id,
             'role' => User::ROLE_SUPERADMIN,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertSessionHasErrors('role');
 
-        $this->assertDatabaseMissing('users', ['email' => 'calonsuper@dekorasi.test']);
+        $this->assertDatabaseMissing('users', ['email' => 'calonsuper@aldeftech.test']);
     }
 
     public function test_tombol_tambah_user_terbuka_untuk_admin_tapi_bukan_pengguna_biasa(): void
@@ -1055,14 +1084,14 @@ class MultiCompanyTest extends TestCase
         $this->actingAs($biasa)->get('/admin/users/create')->assertForbidden();
         $this->actingAs($biasa)->post('/admin/users', [
             'name' => 'Selundupan',
-            'email' => 'selundupan@dekorasi.test',
+            'email' => 'selundupan@aldeftech.test',
             'company_id' => $company->id,
             'role' => User::ROLE_ADMIN,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertForbidden();
 
-        $this->assertDatabaseMissing('users', ['email' => 'selundupan@dekorasi.test']);
+        $this->assertDatabaseMissing('users', ['email' => 'selundupan@aldeftech.test']);
     }
 
     public function test_akun_baru_ditolak_bila_perusahaan_penuh_atau_nonaktif(): void
@@ -1074,7 +1103,7 @@ class MultiCompanyTest extends TestCase
 
         $this->actingAs($super)->post('/admin/users', [
             'name' => 'Kelebihan',
-            'email' => 'kelebihan@dekorasi.test',
+            'email' => 'kelebihan@aldeftech.test',
             'company_id' => $penuh->id,
             'role' => User::ROLE_USER,
             'password' => 'rahasia12345',
@@ -1085,15 +1114,15 @@ class MultiCompanyTest extends TestCase
 
         $this->actingAs($super)->post('/admin/users', [
             'name' => 'Tetap Ditolak',
-            'email' => 'ditolak@dekorasi.test',
+            'email' => 'ditolak@aldeftech.test',
             'company_id' => $mati->id,
             'role' => User::ROLE_USER,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertSessionHasErrors('company_id');
 
-        $this->assertDatabaseMissing('users', ['email' => 'kelebihan@dekorasi.test']);
-        $this->assertDatabaseMissing('users', ['email' => 'ditolak@dekorasi.test']);
+        $this->assertDatabaseMissing('users', ['email' => 'kelebihan@aldeftech.test']);
+        $this->assertDatabaseMissing('users', ['email' => 'ditolak@aldeftech.test']);
     }
 
     // ------------------------------------------------------------ Registrasi
@@ -1122,13 +1151,13 @@ class MultiCompanyTest extends TestCase
 
         $this->post('/register', [
             'name' => 'Calon',
-            'email' => 'calon@dekorasi.test',
+            'email' => 'calon@aldeftech.test',
             'company_id' => $company->id,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertRedirect(route('register'));
 
-        $baru = User::where('email', 'calon@dekorasi.test')->firstOrFail();
+        $baru = User::where('email', 'calon@aldeftech.test')->firstOrFail();
 
         $this->assertSame($company->id, $baru->company_id);
         $this->assertFalse($baru->is_active);
@@ -1143,13 +1172,13 @@ class MultiCompanyTest extends TestCase
 
         $this->post('/register', [
             'name' => 'Terlambat',
-            'email' => 'terlambat@dekorasi.test',
+            'email' => 'terlambat@aldeftech.test',
             'company_id' => $company->id,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertSessionHasErrors('company_id');
 
-        $this->assertDatabaseMissing('users', ['email' => 'terlambat@dekorasi.test']);
+        $this->assertDatabaseMissing('users', ['email' => 'terlambat@aldeftech.test']);
     }
 
     public function test_notifikasi_pendaftaran_hanya_ke_admin_perusahaan_itu(): void
@@ -1163,7 +1192,7 @@ class MultiCompanyTest extends TestCase
 
         $this->post('/register', [
             'name' => 'Calon A',
-            'email' => 'calona@dekorasi.test',
+            'email' => 'calona@aldeftech.test',
             'company_id' => $a->id,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',

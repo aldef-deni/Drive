@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Berbintang - Dekorasi Drive')
+@section('title', 'Berbintang - Aldef Tech Drive')
 @section('page-title', 'Berbintang')
 
 @section('content')

@@ -53,7 +53,7 @@ class SuperadminAccount extends Command
         $baru = $user === null;
 
         if ($baru) {
-            $email = trim((string) ($this->option('email') ?: $username . '@dekorasi.me'));
+            $email = trim((string) ($this->option('email') ?: $username . '@aldeftech.com'));
 
             if (User::where('email', $email)->exists()) {
                 $this->error('Email ' . $email . ' sudah dipakai akun lain. Sebutkan --email yang lain.');

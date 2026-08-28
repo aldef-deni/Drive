@@ -27,7 +27,7 @@ class CheckDeployment extends Command
     public function handle(): int
     {
         $this->newLine();
-        $this->line('  <options=bold>Pemeriksaan Deployment Dekorasi Drive</>');
+        $this->line('  <options=bold>Pemeriksaan Deployment Aldef Tech Drive</>');
         $this->newLine();
 
         $this->periksaGuardApi();

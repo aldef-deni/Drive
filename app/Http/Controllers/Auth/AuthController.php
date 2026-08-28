@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use App\Services\DemoResetService;
 use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
@@ -17,7 +18,13 @@ class AuthController extends Controller
      */
     public function showLogin()
     {
-        return view('auth.login');
+        // Kredensial demo dikirim ke tampilan supaya tombolnya bisa mengisi
+        // kolom. Aman ditampilkan: akun ini memang untuk dicoba siapa saja,
+        // dan isinya dipulihkan berkala.
+        return view('auth.login', [
+            'demoEmail' => config('demo.email') ?: null,
+            'demoPassword' => config('demo.password'),
+        ]);
     }
 
     /**
@@ -35,6 +42,15 @@ class AuthController extends Controller
         $isian = trim($request->email);
         $kolom = filter_var($isian, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
+        // Pemulihan demo dijalankan sebelum autentikasi. Kalau menunggu login
+        // berhasil, pengunjung yang mengganti password akun demo akan mengunci
+        // semua orang - pemulihannya tidak akan pernah terpicu lagi.
+        $demo = app(DemoResetService::class);
+
+        if ($demo->cocokDenganDemo($isian)) {
+            $demo->pulihkanBilaPerlu();
+        }
+
         $credentials = [$kolom => $isian, 'password' => $request->password];
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
@@ -44,7 +60,7 @@ class AuthController extends Controller
                 Auth::logout();
 
                 return back()->withErrors([
-                    'email' => 'Akun Anda belum aktif. Mohon tunggu verifikasi dari Admin Dekorasi.',
+                    'email' => 'Akun Anda belum aktif. Mohon tunggu verifikasi dari administrator.',
                 ])->onlyInput('email');
             }
 

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Admin Dashboard - Dekorasi Drive')
+@section('title', 'Admin Dashboard - Aldef Tech Drive')
 @section('page-title', 'Admin Dashboard')
 
 @section('content')

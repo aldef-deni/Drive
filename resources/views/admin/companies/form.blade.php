@@ -2,7 +2,7 @@
 
 @php $baru = !$company->exists; @endphp
 
-@section('title', ($baru ? 'Tambah' : 'Ubah') . ' Perusahaan - Dekorasi Drive')
+@section('title', ($baru ? 'Tambah' : 'Ubah') . ' Perusahaan - Aldef Tech Drive')
 @section('page-title', ($baru ? 'Tambah' : 'Ubah') . ' Perusahaan')
 
 @section('content')
@@ -75,7 +75,7 @@
                 <label class="label" for="name">Nama Perusahaan</label>
                 <input type="text" id="name" name="name" required maxlength="255"
                     value="{{ old('name', $company->name) }}"
-                    class="field" placeholder="Contoh: PT Dekorasi Nusantara">
+                    class="field" placeholder="Contoh: PT Aldef Nusantara">
                 @error('name')<p class="text-sm text-red-400 mt-1.5">{{ $message }}</p>@enderror
             </div>
 

@@ -26,6 +26,14 @@ class ApiAuthController extends Controller
         $isian = trim($request->email);
         $kolom = filter_var($isian, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
+        // Sama seperti di web: pemulihan demo sebelum autentikasi, supaya
+        // password yang diganti pengunjung tidak mengunci semua orang.
+        $demo = app(\App\Services\DemoResetService::class);
+
+        if ($demo->cocokDenganDemo($isian)) {
+            $demo->pulihkanBilaPerlu();
+        }
+
         $user = User::where($kolom, $isian)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {

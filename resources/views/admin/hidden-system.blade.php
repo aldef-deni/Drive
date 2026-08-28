@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Hidden System - Dekorasi Drive')
+@section('title', 'Hidden System - Aldef Tech Drive')
 @section('page-title', 'Hidden System')
 
 @section('content')
@@ -134,6 +134,19 @@
     </div>
     @endif
 
+    @if(auth()->user()->isDemo())
+    <div class="panel p-5 flex gap-3 border-amber-500/30">
+        <i class="fas fa-flask text-amber-400 mt-0.5"></i>
+        <div class="text-sm text-amber-200/90 leading-relaxed">
+            <p class="font-medium text-amber-300 mb-1">Akun demo</p>
+            <p class="text-xs">
+                Kata kunci ini berlaku untuk seluruh perusahaan, jadi tidak bisa diganti
+                dari akun demo. Semua fitur lain bebas dicoba.
+            </p>
+        </div>
+    </div>
+    @else
+
     {{-- Form ganti kata kunci --}}
     <div class="panel overflow-hidden" id="gantiKataKunci">
         <div class="p-6 border-b border-navy-600">
@@ -194,6 +207,7 @@
             </div>
         </form>
     </div>
+    @endif
 </div>
 @endsection
 

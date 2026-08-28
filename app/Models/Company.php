@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 /**
- * Perusahaan penyewa (tenant) Dekorasi Drive.
+ * Perusahaan penyewa (tenant) Aldef Tech Drive.
  *
  * Pemisahan data mengalir lewat pengguna: setiap file, folder, dan notifikasi
  * dimiliki seorang pengguna, dan setiap pengguna terikat pada satu perusahaan.

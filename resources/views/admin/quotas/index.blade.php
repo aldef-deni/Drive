@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Kuota Penyimpanan - Dekorasi Drive')
+@section('title', 'Kuota Penyimpanan - Aldef Tech Drive')
 @section('page-title', 'Kuota Penyimpanan')
 
 @section('header-actions')

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Drive Saya - Dekorasi Drive')
+@section('title', 'Drive Saya - Aldef Tech Drive')
 @section('page-title', 'Drive Saya')
 
 @section('header-actions')

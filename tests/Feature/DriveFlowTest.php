@@ -59,7 +59,7 @@ class DriveFlowTest extends TestCase
         return User::create(array_merge([
             'company_id' => $this->company()->id,
             'name' => 'Pengguna Uji',
-            'email' => 'user' . uniqid() . '@dekorasi.test',
+            'email' => 'user' . uniqid() . '@aldeftech.test',
             'password' => Hash::make('password123'),
             'role' => 'user',
             'storage_quota' => 104857600,
@@ -76,24 +76,24 @@ class DriveFlowTest extends TestCase
     {
         $this->post('/register', [
             'name' => 'Budi',
-            'email' => 'budi@dekorasi.test',
+            'email' => 'budi@aldeftech.test',
             'company_id' => $this->company()->id,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertRedirect(route('register'));
 
-        $user = User::where('email', 'budi@dekorasi.test')->first();
+        $user = User::where('email', 'budi@aldeftech.test')->first();
         $this->assertNotNull($user);
         $this->assertFalse($user->is_active, 'Akun baru harus menunggu aktivasi admin');
 
-        $this->post('/login', ['email' => 'budi@dekorasi.test', 'password' => 'rahasia12345'])
+        $this->post('/login', ['email' => 'budi@aldeftech.test', 'password' => 'rahasia12345'])
             ->assertSessionHasErrors('email');
         $this->assertGuest();
     }
 
     public function test_login_berhasil_setelah_akun_diaktifkan(): void
     {
-        $user = $this->makeUser(['email' => 'aktif@dekorasi.test']);
+        $user = $this->makeUser(['email' => 'aktif@aldeftech.test']);
 
         $this->post('/login', ['email' => $user->email, 'password' => 'password123'])
             ->assertRedirect('/drive');
@@ -195,7 +195,7 @@ class DriveFlowTest extends TestCase
     public function test_enkripsi_dan_dekripsi_bolak_balik(): void
     {
         $service = app(FileEncryptionService::class);
-        $isi = 'Konten rahasia Dekorasi Drive — 12345';
+        $isi = 'Konten rahasia Aldef Tech Drive — 12345';
 
         $terenkripsi = $service->encrypt($isi, 'kunci-uji');
 
@@ -209,7 +209,7 @@ class DriveFlowTest extends TestCase
     public function test_password_salah_selalu_ditolak_bukan_menghasilkan_file_rusak(): void
     {
         $service = app(FileEncryptionService::class);
-        $isi = 'Dokumen rahasia Dekorasi Drive';
+        $isi = 'Dokumen rahasia Aldef Tech Drive';
         $terenkripsi = $service->encrypt($isi, 'kunci-benar');
 
         // Regresi: tanpa tanda tangan HMAC, dekripsi AES-CBC dengan kunci salah
@@ -987,23 +987,23 @@ class DriveFlowTest extends TestCase
         // Lewat web
         $this->post('/register', [
             'name' => 'Web Baru',
-            'email' => 'webbaru@dekorasi.test',
+            'email' => 'webbaru@aldeftech.test',
             'company_id' => $this->company()->id,
             'company_id' => $this->company()->id,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ]);
-        $this->assertSame($satuGiga, User::where('email', 'webbaru@dekorasi.test')->value('storage_quota'));
+        $this->assertSame($satuGiga, User::where('email', 'webbaru@aldeftech.test')->value('storage_quota'));
 
         // Lewat aplikasi
         $this->withHeaders(['Accept' => 'application/json'])->post('/api/register', [
             'name' => 'Mobile Baru',
-            'email' => 'mobilebaru@dekorasi.test',
+            'email' => 'mobilebaru@aldeftech.test',
             'company_id' => $this->company()->id,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
         ])->assertOk();
-        $this->assertSame($satuGiga, User::where('email', 'mobilebaru@dekorasi.test')->value('storage_quota'));
+        $this->assertSame($satuGiga, User::where('email', 'mobilebaru@aldeftech.test')->value('storage_quota'));
     }
 
     public function test_registrasi_lewat_aplikasi_memberi_tahu_admin(): void
@@ -1012,7 +1012,7 @@ class DriveFlowTest extends TestCase
 
         $this->withHeaders(['Accept' => 'application/json'])->post('/api/register', [
             'name' => 'Aldef',
-            'email' => 'aldef2@dekorasi.test',
+            'email' => 'aldef2@aldeftech.test',
             'company_id' => $this->company()->id,
             'password' => 'rahasia12345',
             'password_confirmation' => 'rahasia12345',
@@ -1075,13 +1075,13 @@ class DriveFlowTest extends TestCase
         $this->withHeaders(['Accept' => 'application/json'])
             ->post('/api/register', [
                 'name' => 'Aldef',
-                'email' => 'aldef@dekorasi.test',
+                'email' => 'aldef@aldeftech.test',
                 'company_id' => $this->company()->id,
                 'password' => 'rahasia12345',
                 'password_confirmation' => 'rahasia12345',
             ])->assertOk()->assertJson(['success' => true]);
 
-        $baru = User::where('email', 'aldef@dekorasi.test')->firstOrFail();
+        $baru = User::where('email', 'aldef@aldeftech.test')->firstOrFail();
         $this->assertFalse($baru->is_active, 'Akun baru harus menunggu verifikasi');
 
         // 2. Belum diverifikasi -> login ditolak dengan pesan yang jelas
@@ -1172,7 +1172,7 @@ class DriveFlowTest extends TestCase
         $this->withHeaders(['Accept' => 'application/json'])
             ->post('/api/register', [
                 'name' => 'Aldef',
-                'email' => 'aldef@dekorasi.test',
+                'email' => 'aldef@aldeftech.test',
                 'company_id' => $this->company()->id,
                 'password' => 'rahasia12345',
                 'password_confirmation' => 'rahasia12345',
@@ -1183,7 +1183,7 @@ class DriveFlowTest extends TestCase
         $this->withHeaders(['Accept' => 'application/json'])
             ->post('/api/register', [
                 'name' => 'Aldef',
-                'email' => 'aldef@dekorasi.test',
+                'email' => 'aldef@aldeftech.test',
                 'company_id' => $this->company()->id,
                 'password' => 'rahasia12345',
                 'password_confirmation' => 'rahasia12345',

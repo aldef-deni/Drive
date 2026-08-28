@@ -1,7 +1,7 @@
-# Dekorasi Drive
+# Aldef Tech Drive
 
-Aplikasi penyimpanan file dan folder berbasis Laravel 11 untuk Dekorasi.me.
-Produksi: <https://drive.dekorasi.me>
+Aplikasi penyimpanan file dan folder berbasis Laravel 11 untuk Aldef Tech.
+Produksi: <https://drive.aldeftech.com>
 
 ## Fitur
 
@@ -52,7 +52,7 @@ menerima notifikasi bahwa akunnya sudah bisa dipakai.
 composer install
 cp .env.example .env
 php artisan key:generate
-php artisan migrate --seed          # membuat akun admin@dekorasi.me / password
+php artisan migrate --seed          # membuat akun admin@aldeftech.com / password
 php artisan storage:link            # opsional; avatar tidak bergantung padanya
 php artisan serve
 ```
@@ -92,7 +92,7 @@ php artisan test
 ```env
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://drive.dekorasi.me
+APP_URL=https://drive.aldeftech.com
 ```
 
 > **Penting:** selama `APP_DEBUG=true`, setiap error menampilkan seluruh stack
@@ -140,4 +140,4 @@ respons API, sesuaikan juga `src/config/api.js` di proyek mobile.
 
 ## Lisensi
 
-Proprietary — Dekorasi.me.
+Proprietary — Aldef Tech.

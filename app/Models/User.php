@@ -153,6 +153,20 @@ class User extends Authenticatable
     }
 
     /**
+     * Akun demo yang boleh dicoba siapa saja.
+     *
+     * Isinya dipulihkan berkala, jadi apa pun yang dilakukan di dalamnya tidak
+     * kekal. Yang tidak boleh disentuhnya adalah pengaturan yang berlaku
+     * lintas perusahaan.
+     */
+    public function isDemo(): bool
+    {
+        $demo = (string) config('demo.email');
+
+        return $demo !== '' && strcasecmp((string) $this->email, $demo) === 0;
+    }
+
+    /**
      * Peran tertinggi, di atas seluruh admin perusahaan.
      */
     public function isSuperAdmin(): bool

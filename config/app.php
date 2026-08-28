@@ -52,7 +52,7 @@ return [
     |
     */
 
-    'url' => env('APP_URL', 'https://drive.dekorasi.me'),
+    'url' => env('APP_URL', 'https://drive.aldeftech.com'),
 
     /*
     |--------------------------------------------------------------------------

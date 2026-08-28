@@ -228,6 +228,14 @@ class ApiAdminController extends Controller
      */
     public function updateHiddenKeyword(Request $request)
     {
+        // Sama seperti di web: kata kunci ini berlaku lintas perusahaan.
+        if ($request->user()->isDemo()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akun demo tidak bisa mengganti kata kunci rahasia.',
+            ], 403);
+        }
+
         $request->validate([
             'current_password' => ['required', 'string'],
             'keyword' => ['required', 'string', 'min:4', 'max:64', 'regex:/^\S+$/u'],

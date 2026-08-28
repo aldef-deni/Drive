@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#0a1628">
-    <meta name="description" content="Dekorasi Drive — penyimpanan file dan folder yang aman untuk tim Dekorasi.me">
-    <title>@yield('title', 'Dekorasi Drive')</title>
-    <link rel="icon" href="{{ asset('logo-dekorasi.png') }}" type="image/png">
+    <meta name="description" content="Aldef Tech Drive — penyimpanan file dan folder yang aman untuk tim Anda.">
+    <title>@yield('title', 'Aldef Tech Drive')</title>
+    <link rel="icon" href="{{ asset('favicon-aldef.png') }}" type="image/png">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -53,7 +53,7 @@
 
     <style>
         /* ============================================================
-           Dekorasi Drive — tema Navy + Gold
+           Aldef Tech Drive — tema Navy + Gold
            ============================================================ */
         :root {
             --navy-950: #060d18;
@@ -259,17 +259,28 @@
             </div>
             @else
             <div class="p-4 md:p-6 border-b border-white/10 flex items-center justify-between">
+                @if($logoPerusahaan)
                 <a href="{{ route('drive.index') }}" class="flex items-center gap-3 min-w-0">
-                    <img src="{{ $logoPerusahaan ?? asset('logo-dekorasi.png') }}"
-                         alt="{{ $logoPerusahaan ? 'Logo ' . $perusahaan->name : 'Logo Dekorasi' }}"
-                         class="w-9 h-9 md:w-10 md:h-10 rounded-xl ring-1 ring-gold-500/40 {{ $logoPerusahaan ? 'object-contain bg-white/5' : '' }}">
+                    <img src="{{ $logoPerusahaan }}" alt="Logo {{ $perusahaan->name }}"
+                         class="w-9 h-9 md:w-10 md:h-10 rounded-xl ring-1 ring-gold-500/40 object-contain bg-white/5">
                     <span class="min-w-0">
-                        <span class="block font-bold text-base leading-tight truncate">
-                            {{ $logoPerusahaan ? $perusahaan->name : 'Dekorasi Drive' }}
-                        </span>
+                        <span class="block font-bold text-base leading-tight truncate">{{ $perusahaan->name }}</span>
                         <span class="block text-[11px] text-white/40 tracking-wide">Penyimpanan Aman</span>
                     </span>
                 </a>
+                @else
+                {{-- Identitas bawaan: logo memanjang, jadi diberi ruang selebar
+                     sidebar. Dipaksa masuk kotak kecil akan membuat tulisannya
+                     tidak terbaca. --}}
+                <a href="{{ route('drive.index') }}" class="block flex-1 min-w-0 group">
+                    <img src="{{ asset('aldef-logo.png') }}" alt="Aldef Tech"
+                         class="w-full max-w-[176px] h-auto transition duration-300 group-hover:brightness-110"
+                         style="filter: drop-shadow(0 2px 10px rgba(99,102,241,.3))">
+                    <span class="block text-[10px] text-white/40 tracking-[0.18em] uppercase mt-1.5">
+                        Penyimpanan Aman
+                    </span>
+                </a>
+                @endif
                 <button onclick="closeSidebar()" aria-label="Tutup menu" class="md:hidden w-9 h-9 rounded-lg hover:bg-white/10 flex items-center justify-center">
                     <i class="fas fa-times text-white/70"></i>
                 </button>

@@ -222,7 +222,7 @@ class AdminController extends Controller
                 'user_id' => $user->id,
                 'type'    => 'account_activated',
                 'title'   => 'Akun Diverifikasi',
-                'message' => 'Akun Anda telah diverifikasi admin. Selamat menggunakan Dekorasi Drive.',
+                'message' => 'Akun Anda telah diverifikasi admin. Selamat menggunakan Aldef Tech Drive.',
                 'icon'    => 'fas fa-circle-check',
                 'color'   => 'green',
                 'url'     => '/drive',
@@ -357,6 +357,15 @@ class AdminController extends Controller
      */
     public function updateHiddenKeyword(Request $request)
     {
+        // Kata kunci ini berlaku untuk SELURUH perusahaan, jadi ia satu-satunya
+        // pengaturan admin yang dampaknya keluar dari perusahaan sendiri. Akun
+        // demo dipakai orang asing - membiarkannya mengganti kata kunci berarti
+        // seluruh pelanggan kehilangan akses ke file tersembunyi mereka.
+        if (Auth::user()->isDemo()) {
+            return back()->with('error',
+                'Akun demo tidak bisa mengganti kata kunci rahasia, karena kata kunci ini berlaku untuk semua perusahaan.');
+        }
+
         $request->validate([
             'current_password' => ['required', 'string'],
             'keyword' => ['required', 'string', 'min:4', 'max:64', 'confirmed', 'regex:/^\S+$/u'],

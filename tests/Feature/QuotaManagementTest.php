@@ -31,13 +31,152 @@ class QuotaManagementTest extends TestCase
         return User::create(array_merge([
             'company_id' => $company?->id,
             'name' => 'Pengguna ' . uniqid(),
-            'email' => 'u' . uniqid() . '@dekorasi.test',
+            'email' => 'u' . uniqid() . '@aldeftech.test',
             'password' => Hash::make('password123'),
             'role' => $role,
             'storage_quota' => User::DEFAULT_STORAGE_QUOTA,
             'storage_used' => 0,
             'is_active' => true,
         ], $extra));
+    }
+
+    // ---------------------------------------------------- Akun demo
+
+    private function demo(): \App\Services\DemoResetService
+    {
+        return app(\App\Services\DemoResetService::class);
+    }
+
+    public function test_pemulihan_demo_membangun_akun_dan_isi_contohnya(): void
+    {
+        $this->demo()->pulihkan();
+
+        $akun = User::where('email', config('demo.email'))->firstOrFail();
+
+        $this->assertSame(User::ROLE_ADMIN, $akun->role);
+        $this->assertTrue($akun->is_active);
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check(config('demo.password'), $akun->password));
+
+        // Perusahaan tersendiri: akun demo berperan admin, dan admin melihat
+        // seluruh pengguna di perusahaannya. Menempatkannya di perusahaan asli
+        // berarti membuka data pelanggan kepada siapa pun yang mencoba demo.
+        $this->assertSame(config('demo.company'), $akun->company->name);
+
+        $this->assertGreaterThan(0, \App\Models\File::where('user_id', $akun->id)->count(),
+            'Demo tidak boleh dibuka dalam keadaan kosong');
+        $this->assertGreaterThan(0, \App\Models\FileFolder::where('user_id', $akun->id)->count());
+    }
+
+    public function test_pemulihan_demo_menghapus_jejak_pengunjung_sebelumnya(): void
+    {
+        $this->demo()->pulihkan();
+        $akun = User::where('email', config('demo.email'))->firstOrFail();
+        $company = $akun->company;
+
+        // Pengunjung mengubah banyak hal: ganti password, unggah berkas,
+        // membuat akun baru, dan menonaktifkan dirinya sendiri.
+        $akun->update([
+            'password' => \Illuminate\Support\Facades\Hash::make('sudahDiubah99'),
+            'name' => 'Diubah Pengunjung',
+            'is_active' => false,
+        ]);
+
+        \App\Models\File::create([
+            'user_id' => $akun->id,
+            'name' => 'sampah.txt',
+            'original_name' => 'sampah.txt',
+            'path' => 'sampah.txt',
+            'mime_type' => 'text/plain',
+            'size' => 5,
+            'folder' => '/',
+            'is_hidden' => false,
+        ]);
+
+        $titipan = $this->user($company, User::ROLE_USER, ['name' => 'Akun Titipan']);
+
+        $this->demo()->pulihkan();
+
+        $pulih = User::where('email', config('demo.email'))->firstOrFail();
+
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check(config('demo.password'), $pulih->password),
+            'Password yang diganti pengunjung harus kembali');
+        $this->assertTrue($pulih->is_active);
+        $this->assertSame(config('demo.name'), $pulih->name);
+
+        $this->assertDatabaseMissing('users', ['id' => $titipan->id]);
+        $this->assertSame(0, \App\Models\File::where('original_name', 'sampah.txt')->count());
+    }
+
+    public function test_pemulihan_demo_tidak_menyentuh_perusahaan_lain(): void
+    {
+        $lain = $this->company('PT Bukan Demo');
+        $pelanggan = $this->user($lain, User::ROLE_USER, ['name' => 'Pelanggan Asli']);
+
+        $this->demo()->pulihkan();
+
+        $this->assertDatabaseHas('users', ['id' => $pelanggan->id, 'name' => 'Pelanggan Asli']);
+        $this->assertDatabaseHas('companies', ['id' => $lain->id]);
+    }
+
+    public function test_pemulihan_demo_hanya_sekali_dalam_selang_waktunya(): void
+    {
+        $this->assertTrue($this->demo()->pulihkanBilaPerlu(), 'Pertama kali selalu dipulihkan');
+
+        // Sudah dipulihkan barusan; percobaan berikutnya tidak boleh membangun
+        // ulang - kalau tidak, tiap percobaan masuk menghapus pekerjaan orang
+        // yang sedang mencoba.
+        $this->assertFalse($this->demo()->pulihkanBilaPerlu());
+    }
+
+    public function test_login_demo_memicu_pemulihan_walau_password_sudah_diganti(): void
+    {
+        $this->demo()->pulihkan();
+        $akun = User::where('email', config('demo.email'))->firstOrFail();
+
+        // Pengunjung mengganti password, lalu waktunya lewat.
+        $akun->update(['password' => \Illuminate\Support\Facades\Hash::make('dikunciPengunjung')]);
+        \App\Models\Setting::put('demo_last_reset', now()->subDays(2)->toIso8601String());
+
+        // Masuk dengan password aslinya: pemulihan berjalan lebih dulu, jadi
+        // password itu berlaku kembali dan tidak ada yang terkunci.
+        $this->post('/login', [
+            'email' => config('demo.email'),
+            'password' => config('demo.password'),
+        ]);
+
+        $this->assertAuthenticated();
+    }
+
+    public function test_akun_demo_tidak_bisa_mengganti_kata_kunci_rahasia(): void
+    {
+        $this->demo()->pulihkan();
+        $akun = User::where('email', config('demo.email'))->firstOrFail();
+
+        \App\Models\Setting::setHiddenKeyword('kunciAsliPelanggan');
+
+        // Kata kunci ini berlaku lintas perusahaan. Membiarkan akun demo
+        // menggantinya berarti seluruh pelanggan kehilangan akses ke file
+        // tersembunyi mereka.
+        $this->actingAs($akun)->put('/admin/hidden-system', [
+            'current_password' => config('demo.password'),
+            'keyword' => 'dibajakDemo',
+            'keyword_confirmation' => 'dibajakDemo',
+        ])->assertRedirect();
+
+        $this->assertTrue(\App\Models\Setting::matchesHiddenKeyword('kunciAsliPelanggan'),
+            'Kata kunci pelanggan harus tetap berlaku');
+        $this->assertFalse(\App\Models\Setting::matchesHiddenKeyword('dibajakDemo'));
+    }
+
+    public function test_layar_masuk_menyediakan_tombol_demo(): void
+    {
+        $html = $this->get('/login')->assertOk()->getContent();
+
+        // Tombolnya mengisi kolom, bukan langsung mengirim - jadi yang diuji
+        // adalah pemicunya beserta kredensial yang akan diisikan.
+        $this->assertStringContainsString('isiDemo()', $html);
+        $this->assertStringContainsString(config('demo.email'), $html);
+        $this->assertStringContainsString('Demo', $html);
     }
 
     // ------------------------------------------- Penghapusan notifikasi

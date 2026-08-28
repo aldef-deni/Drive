@@ -3,8 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Register - Dekorasi Drive</title>
-    <link rel="icon" href="{{ asset('logo-dekorasi.png') }}" type="image/png">
+    <title>Register - Aldef Tech Drive</title>
+    <link rel="icon" href="{{ asset('favicon-aldef.png') }}" type="image/png">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700|inter:300,400,500,600,700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -285,8 +285,10 @@
     <div class="w-full max-w-md px-4 relative z-10">
         <!-- Logo -->
         <div class="text-center mb-5">
-            <img src="{{ asset('logo-dekorasi.png') }}" alt="Logo" class="w-16 h-16 mx-auto rounded-2xl logo-emboss mb-3">
-            <h1 class="text-2xl font-bold text-white title-glow">Dekorasi Drive</h1>
+            <img src="{{ asset('aldef-logo.png') }}" alt="Aldef Tech"
+                 class="w-56 max-w-full h-auto mx-auto mb-2"
+                 style="filter: drop-shadow(0 4px 16px rgba(99,102,241,.35))">
+            <h1 class="text-2xl font-bold text-white title-glow">Aldef Tech Drive</h1>
             <p class="text-white/40 text-sm mt-1">Buat Akun Baru</p>
         </div>
         
@@ -383,7 +385,7 @@
         
         <!-- Footer -->
         <p class="text-center text-white/20 text-xs mt-4">
-            &copy; {{ date('Y') }} Dekorasi.me
+            &copy; {{ date('Y') }} Aldef Tech
         </p>
     </div>
 
@@ -408,7 +410,7 @@
                     <i class="fas fa-clock text-amber-400 text-xl animate-pulse"></i>
                 </div>
                 <p class="text-white font-semibold">Mohon Tunggu</p>
-                <p class="text-white/40 text-xs mt-1">Untuk verifikasi oleh Admin Dekorasi</p>
+                <p class="text-white/40 text-xs mt-1">Untuk verifikasi oleh administrator</p>
             </div>
             
             <a href="{{ route('login') }}" class="btn-premium block w-full">
