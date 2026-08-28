@@ -54,9 +54,21 @@ Kalau ada yang berbeda, sunting bagian **Pengaturan** di kepala
 
 ## 1. Ubah folder aplikasi menjadi kloning git
 
-Aplikasi di server sekarang berasal dari ekstrak ZIP, bukan `git clone`, jadi
-belum bisa menarik pembaruan. Langkah ini menggantinya **tanpa kehilangan
-`.env` maupun berkas pengguna**.
+> **Lewati langkah ini bila folder aplikasi sudah kloning git.** Periksa dengan:
+>
+> ```bash
+> cd /www/wwwroot/drive.aldeftech.com
+> git -c safe.directory='*' remote -v
+> ```
+>
+> Kalau muncul URL repo, folder ini sudah kloning git — langsung ke langkah 2.
+>
+> Catatan: menjalankan `git remote -v` tanpa `safe.directory` bisa menghasilkan
+> `detected dubious ownership` dan terbaca seolah bukan kloning git. Berkas
+> situs milik `www`, sedangkan perintahnya dijalankan user lain.
+
+Diperlukan hanya bila aplikasi di server berasal dari ekstrak ZIP. Langkah ini
+menggantinya **tanpa kehilangan `.env` maupun berkas pengguna**.
 
 > Jalankan satu per satu dan baca hasilnya. Ini satu-satunya langkah yang
 > menyentuh data yang sudah ada.
@@ -103,8 +115,24 @@ hari — jangan buru-buru.
 
 ### Repo privat
 
-Kalau repo GitHub-nya privat, kloning di atas akan meminta kredensial. Pakai
-deploy key baca-saja, bukan akun Anda:
+Repo privat butuh kredensial setiap kali `git fetch`. Cron berjalan sebagai
+`root`, jadi yang harus punya kredensial itu **root** — bukan user SSH Anda,
+dan bukan aaPanel.
+
+Periksa lebih dulu, dari Terminal aaPanel (yang memang root):
+
+```bash
+cd /www/wwwroot/drive.aldeftech.com
+git -c safe.directory='*' fetch --dry-run
+```
+
+Selesai tanpa pesan → sudah beres, lanjut ke langkah 2. Kalau muncul
+`Username for 'https://github.com'` atau `Authentication failed`, pilih salah
+satu di bawah.
+
+#### Pilihan A — deploy key SSH (disarankan)
+
+Tidak kedaluwarsa, dan aksesnya bisa dibatasi baca-saja pada satu repo:
 
 ```bash
 sudo mkdir -p /root/.ssh
@@ -117,23 +145,39 @@ Biarkan "Allow write access" **tidak** dicentang. Lalu pakai URL SSH:
 
 ```bash
 cd /www/wwwroot/drive.aldeftech.com
-sudo git remote set-url origin git@github.com:aldef-deni/Drive.git
-```
+git remote set-url origin git@github.com:aldef-deni/Drive.git
 
-Beri tahu SSH kunci mana yang dipakai untuk GitHub — cron berjalan sebagai
-root, jadi berkas ini milik root:
-
-```bash
-sudo tee -a /root/.ssh/config >/dev/null <<'EOF'
+cat >> /root/.ssh/config <<'EOF'
 Host github.com
     IdentityFile /root/.ssh/deploy_key
     IdentitiesOnly yes
 EOF
-sudo chmod 600 /root/.ssh/config /root/.ssh/deploy_key
+chmod 600 /root/.ssh/config /root/.ssh/deploy_key
 
 # Terima sidik jari GitHub sekali, supaya cron tidak menunggu jawaban selamanya
-sudo ssh-keyscan github.com | sudo tee -a /root/.ssh/known_hosts >/dev/null
+ssh-keyscan github.com >> /root/.ssh/known_hosts
+
+# Uji
+git -c safe.directory='*' fetch --dry-run
 ```
+
+#### Pilihan B — token lewat HTTPS
+
+Lebih cepat, tetapi tokennya bisa kedaluwarsa dan tersimpan sebagai teks biasa
+di `/root/.git-credentials` (hanya root yang bisa membacanya).
+
+Buat **Fine-grained personal access token** di GitHub dengan izin
+*Contents: Read-only* pada repo ini saja, lalu:
+
+```bash
+git config --global credential.helper store
+cd /www/wwwroot/drive.aldeftech.com
+git -c safe.directory='*' fetch
+# Username: aldef-deni
+# Password: <tempel token, bukan password akun>
+```
+
+Fetch berikutnya tidak akan bertanya lagi.
 
 ---
 
