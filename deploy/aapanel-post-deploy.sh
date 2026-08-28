@@ -26,6 +26,7 @@ WEB_GROUP="www"
 cd "$APP_DIR" || exit 1
 
 echo "=== Post-deploy Aldef Tech Drive — $(date '+%Y-%m-%d %H:%M:%S') ==="
+echo "Kode di commit: $(git -c safe.directory='*' rev-parse --short HEAD)"
 
 # ------------------------------------------------- Cadangkan database dulu
 # Diambil sebelum migrasi. Migrasi yang gagal separuh jalan tidak bisa
@@ -75,8 +76,13 @@ trap nyalakan_lagi EXIT
 if [ -x "$COMPOSER" ]; then
     # COMPOSER_HOME wajib disebut: skrip ini berjalan sebagai root, dan tanpa
     # ini composer mencari cache di direktori home yang mungkin tidak ada.
+    # Composer dipanggil LEWAT $PHP, bukan langsung. Laravel memakai "@php" di
+    # composer.json, dan composer menerjemahkannya menjadi PHP yang sedang
+    # menjalankan dirinya. Dipanggil langsung, "@php" menunjuk /usr/local/bin/php
+    # yang tidak ada di server ini - akibatnya package:discover dilewati diam-diam
+    # dan bootstrap/cache/packages.php tidak pernah diperbarui.
     COMPOSER_HOME=/root/.composer COMPOSER_ALLOW_SUPERUSER=1 \
-        "$COMPOSER" install --no-dev --optimize-autoloader --no-interaction --no-progress \
+        "$PHP" "$COMPOSER" install --no-dev --optimize-autoloader --no-interaction --no-progress \
         || { echo "GAGAL composer install."; exit 1; }
 else
     echo "PERINGATAN: composer tidak ditemukan di $COMPOSER, dilewati."
@@ -93,9 +99,10 @@ fi
 "$PHP" artisan view:cache
 
 # ------------------------------------------------------------ Kepemilikan
-# Kode ditarik sebagai root; tanpa ini web server tidak bisa menulis ke storage
-# dan unggahan gagal dengan "permission denied".
-chown -R "${WEB_USER}:${WEB_GROUP}" "$APP_DIR"
+# Hanya folder yang memang perlu ditulis web server. Sengaja tidak seluruh
+# folder situs: aaPanel menaruh .user.ini yang dikunci (chattr +i) di akarnya,
+# dan chown -R ke situ selalu berakhir "Operation not permitted".
+chown -R "${WEB_USER}:${WEB_GROUP}" storage bootstrap/cache
 chmod -R ug+rw storage bootstrap/cache
 
 nyalakan_lagi
