@@ -41,11 +41,27 @@
                 
                 <div>
                     <label class="label">Peran</label>
-                    <select name="role" 
-                        class="field">
+                    {{-- Pilihan Superadmin wajib ada di sini bagi superadministrator.
+                         Tanpa itu, membuka akun superadmin di formulir ini membuat
+                         browser memilih opsi pertama (User), dan menyimpannya
+                         menurunkan perannya tanpa peringatan apa pun. --}}
+                    <select name="role" class="field">
                         <option value="user" {{ $user->role === 'user' ? 'selected' : '' }}>User</option>
                         <option value="admin" {{ $user->role === 'admin' ? 'selected' : '' }}>Admin</option>
+                        @if(auth()->user()->isSuperAdmin())
+                        <option value="superadmin" {{ $user->role === 'superadmin' ? 'selected' : '' }}>
+                            Superadmin
+                        </option>
+                        @endif
                     </select>
+                    @if($user->isSuperAdmin())
+                    <p class="text-xs text-amber-400 mt-1.5">
+                        <i class="fas fa-triangle-exclamation mr-1"></i>
+                        Menurunkan peran akun ini menghilangkan akses ke menu Perusahaan dan
+                        Kuota. Pemulihannya hanya bisa lewat perintah di server.
+                    </p>
+                    @endif
+                    @error('role')<p class="text-sm text-red-400 mt-1.5">{{ $message }}</p>@enderror
                 </div>
                 
                 <div>

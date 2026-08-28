@@ -142,10 +142,13 @@ class AdminController extends Controller
         // Checkbox yang tidak dicentang tidak ikut terkirim — anggap non-aktif.
         $isActive = $request->boolean('is_active');
 
-        if ($user->id === Auth::id() && (!$isActive || $request->role !== 'admin')) {
+        // Dibandingkan dengan peran yang berlaku sekarang, bukan dengan 'admin'.
+        // Sebelumnya superadministrator yang menyunting akunnya sendiri selalu
+        // tertolak, karena perannya memang bukan 'admin'.
+        if ($user->id === Auth::id() && (!$isActive || $request->role !== $user->role)) {
             return back()
                 ->withInput()
-                ->with('error', 'Tidak bisa menurunkan role atau menonaktifkan akun sendiri');
+                ->with('error', 'Tidak bisa mengubah peran atau menonaktifkan akun sendiri');
         }
 
         $data = [

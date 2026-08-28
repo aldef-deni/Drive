@@ -274,6 +274,113 @@ class MultiCompanyTest extends TestCase
         $this->assertTrue($admin->is_active, 'Admin buatan superadmin langsung aktif');
     }
 
+    // -------------------------------- Pemulihan akun superadministrator
+
+    public function test_formulir_edit_menyediakan_peran_superadmin_bagi_superadmin(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+        $target = $this->user($this->company('PT Sunting'), User::ROLE_ADMIN);
+
+        // Regresi: pilihan Superadmin tidak ada, sehingga membuka akun
+        // superadmin di formulir ini membuat browser memilih opsi pertama
+        // (User) dan menyimpannya menurunkan perannya diam-diam.
+        $html = $this->actingAs($super)->get('/admin/users/' . $target->id . '/edit')
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('value="superadmin"', $html);
+
+        $this->app['auth']->forgetGuards();
+
+        $admin = $this->user($this->company('PT Lain Sunting'), User::ROLE_ADMIN);
+        $bawahan = $this->user($admin->company, User::ROLE_USER);
+
+        $html = $this->actingAs($admin)->get('/admin/users/' . $bawahan->id . '/edit')
+            ->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('value="superadmin"', $html,
+            'Admin perusahaan tidak boleh bisa mengangkat siapa pun jadi superadmin');
+    }
+
+    public function test_superadmin_tidak_terhalang_menyunting_akunnya_sendiri(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN, ['name' => 'Nama Lama']);
+
+        // Penjagaan lama membandingkan peran dengan 'admin', sehingga
+        // superadministrator selalu tertolak saat menyunting dirinya sendiri.
+        $this->actingAs($super)->put('/admin/users/' . $super->id, [
+            'name' => 'Nama Baru',
+            'email' => $super->email,
+            'role' => User::ROLE_SUPERADMIN,
+            'storage_quota' => 10 * 1073741824,
+            'is_active' => 1,
+        ])->assertRedirect(route('admin.users'));
+
+        $this->assertSame('Nama Baru', $super->fresh()->name);
+        $this->assertSame(User::ROLE_SUPERADMIN, $super->fresh()->role);
+    }
+
+    public function test_superadmin_tidak_bisa_menurunkan_peran_sendiri(): void
+    {
+        $super = $this->user(null, User::ROLE_SUPERADMIN);
+
+        $this->actingAs($super)->put('/admin/users/' . $super->id, [
+            'name' => $super->name,
+            'email' => $super->email,
+            'role' => User::ROLE_ADMIN,
+            'storage_quota' => 10 * 1073741824,
+            'is_active' => 1,
+        ])->assertRedirect();
+
+        $this->assertSame(User::ROLE_SUPERADMIN, $super->fresh()->role,
+            'Menurunkan peran sendiri akan mengunci diri keluar dari seluruh sistem');
+    }
+
+    public function test_perintah_server_memulihkan_akun_superadministrator(): void
+    {
+        // Peran ini tidak bisa diberikan lewat pendaftaran atau formulir tambah
+        // user, jadi tanpa jalur server sekali hilang berarti terkunci selamanya.
+        $this->artisan('drive:superadmin', [
+            '--username' => 'aldeftech',
+            '--password' => 'rahasia12345',
+        ])->assertSuccessful();
+
+        $baru = User::where('username', 'aldeftech')->firstOrFail();
+
+        $this->assertSame(User::ROLE_SUPERADMIN, $baru->role);
+        $this->assertTrue($baru->is_active);
+        $this->assertNull($baru->company_id, 'Superadmin tidak terikat perusahaan mana pun');
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('rahasia12345', $baru->password));
+        $this->assertNotNull($baru->api_token, 'Harus bisa langsung masuk lewat aplikasi juga');
+    }
+
+    public function test_perintah_server_mengangkat_kembali_akun_yang_turun_peran(): void
+    {
+        $company = $this->company('PT Turun');
+        $korban = $this->user($company, User::ROLE_USER, ['username' => 'aldeftech', 'is_active' => false]);
+
+        $this->artisan('drive:superadmin', [
+            '--username' => 'aldeftech',
+            '--password' => 'rahasia12345',
+        ])->assertSuccessful();
+
+        $pulih = $korban->fresh();
+
+        $this->assertSame(User::ROLE_SUPERADMIN, $pulih->role);
+        $this->assertTrue($pulih->is_active, 'Akun nonaktif ikut diaktifkan kembali');
+        $this->assertNull($pulih->company_id);
+        $this->assertSame($korban->id, $pulih->id, 'Akun yang sama, bukan akun baru');
+    }
+
+    public function test_perintah_server_menolak_password_lemah(): void
+    {
+        $this->artisan('drive:superadmin', [
+            '--username' => 'aldeftech',
+            '--password' => 'pendek',
+        ])->assertFailed();
+
+        $this->assertDatabaseMissing('users', ['username' => 'aldeftech']);
+    }
+
     // ------------------------------------ Notifikasi tidak lintas perusahaan
 
     public function test_notifikasi_aktivitas_tidak_bocor_ke_admin_perusahaan_lain(): void
