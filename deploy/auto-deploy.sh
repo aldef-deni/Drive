@@ -9,6 +9,9 @@
 # tidak ada kredensial yang dititipkan ke sana, dan kalau GitHub sempat tidak
 # terjangkau, percobaan berikutnya cukup 2 menit lagi.
 #
+# Bawaannya menyesuaikan aaPanel (path /www/wwwroot, user web "www").
+# Untuk server lain, ubah bagian Pengaturan di bawah.
+#
 # Pasang:
 #   sudo install -m 755 deploy/auto-deploy.sh /usr/local/bin/auto-deploy.sh
 #   sudo crontab -e
@@ -18,25 +21,51 @@ set -euo pipefail
 
 # ============================================================ Pengaturan
 
-APP_DIR="${APP_DIR:-/var/www/drive}"
+APP_DIR="${APP_DIR:-/www/wwwroot/drive.aldeftech.com}"
 BRANCH="${BRANCH:-master}"
 
-PHP="${PHP:-$(command -v php || echo /usr/bin/php)}"
-COMPOSER="${COMPOSER:-$(command -v composer || echo /usr/local/bin/composer)}"
+# Pemilik berkas yang dipakai web server. aaPanel memakai "www", bukan
+# "www-data" seperti Ubuntu biasa. Salah di sini membuat unggahan gagal dengan
+# "permission denied" setelah deploy pertama.
+WEB_USER="${WEB_USER:-www}"
+WEB_GROUP="${WEB_GROUP:-www}"
 
-# Pemilik berkas yang dipakai web server. Salah di sini membuat unggahan gagal
-# dengan "permission denied" setelah deploy pertama.
-WEB_USER="${WEB_USER:-www-data}"
-WEB_GROUP="${WEB_GROUP:-www-data}"
-
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/aldeftech-drive}"
+BACKUP_DIR="${BACKUP_DIR:-/www/backup/drive-deploy}"
 BACKUP_KEEP="${BACKUP_KEEP:-14}"
 
-LOG="${LOG:-/var/log/aldeftech-deploy.log}"
+LOG="${LOG:-/www/wwwlogs/aldeftech-deploy.log}"
 LOG_MAX_BYTES="${LOG_MAX_BYTES:-5242880}" # 5 MB
 
 LOCKDIR="/tmp/aldeftech-deploy.lock.d"
 PENANDA_GAGAL="${APP_DIR}/storage/deploy-gagal"
+
+# ================================================== Pencarian program
+#
+# Cron berjalan dengan PATH minim (biasanya /usr/bin:/bin), sedangkan aaPanel
+# menaruh PHP di /www/server/php/<versi>/bin. Mengandalkan `command -v` saja
+# membuat skrip ini jalan mulus saat diuji manual lalu gagal diam-diam di cron.
+
+cari_program() {
+    local nama="$1"; shift
+
+    local ketemu
+    ketemu=$(command -v "$nama" 2>/dev/null || true)
+    if [ -n "$ketemu" ]; then printf '%s' "$ketemu"; return 0; fi
+
+    local kandidat
+    for kandidat in "$@"; do
+        # Versi PHP aaPanel dicari dari yang terbaru.
+        for berkas in $(ls -d $kandidat 2>/dev/null | sort -rV); do
+            if [ -x "$berkas" ]; then printf '%s' "$berkas"; return 0; fi
+        done
+    done
+
+    return 1
+}
+
+PHP="${PHP:-$(cari_program php '/www/server/php/*/bin/php' /usr/local/bin/php /usr/bin/php || true)}"
+COMPOSER="${COMPOSER:-$(cari_program composer /usr/local/bin/composer /usr/bin/composer '/www/server/php/*/bin/composer' || true)}"
+MYSQLDUMP="${MYSQLDUMP:-$(cari_program mysqldump /www/server/mysql/bin/mysqldump /usr/bin/mysqldump || true)}"
 
 # ============================================================== Pembantu
 
@@ -92,15 +121,15 @@ cadangkan_database() {
     host=$(env_ambil DB_HOST)
     host="${host:-127.0.0.1}"
 
-    if [ -z "$db" ] || ! command -v mysqldump >/dev/null 2>&1; then
-        catat "PERINGATAN: database tidak dicadangkan (mysqldump/DB_DATABASE tidak ada)."
+    if [ -z "$db" ] || [ -z "${MYSQLDUMP:-}" ]; then
+        catat "PERINGATAN: database tidak dicadangkan (mysqldump atau DB_DATABASE tidak ditemukan)."
         return 0
     fi
 
     mkdir -p "$BACKUP_DIR"
     local berkas="${BACKUP_DIR}/${db}-$(date '+%Y%m%d-%H%M%S').sql.gz"
 
-    if MYSQL_PWD="$pass" mysqldump --single-transaction --quick --no-tablespaces \
+    if MYSQL_PWD="$pass" "$MYSQLDUMP" --single-transaction --quick --no-tablespaces \
         -h "$host" -u "$user" "$db" 2>>"$LOG" | gzip > "$berkas"; then
         catat "Database dicadangkan: $berkas"
     else
@@ -121,6 +150,11 @@ jalankan() {
 
     if [ ! -d .git ]; then
         catat "GALAT: ${APP_DIR} bukan hasil git clone. Deploy tidak bisa berjalan."
+        return 1
+    fi
+
+    if [ -z "${PHP:-}" ] || [ ! -x "$PHP" ]; then
+        catat "GALAT: PHP tidak ditemukan. Sebutkan letaknya di bagian Pengaturan skrip ini."
         return 1
     fi
 
@@ -161,6 +195,10 @@ jalankan() {
 
     if echo "$berubah" | grep -q '^composer\.\(json\|lock\)$'; then
         catat "Dependensi berubah, menjalankan composer install."
+        if [ -z "${COMPOSER:-}" ] || [ ! -x "$COMPOSER" ]; then
+            catat "GAGAL: composer tidak ditemukan, padahal dependensi berubah."
+            return 1
+        fi
         if ! "$COMPOSER" install --no-dev --optimize-autoloader --no-interaction \
              --no-progress >>"$LOG" 2>&1; then
             catat "GAGAL composer install."
